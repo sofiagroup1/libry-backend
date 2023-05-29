@@ -6,10 +6,7 @@ import { passportJwtSecret } from "jwks-rsa";
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
-	constructor(
-		@Inject("AWSCognitoConfig")
-		private readonly awsCognitoConfig: AWSCognitoConfig,
-	) {
+	constructor(private awsCognitoConfig: AWSCognitoConfig) {
 		super({
 			jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
 			ignoreExpiration: false,

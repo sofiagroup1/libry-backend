@@ -4,6 +4,7 @@ import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { AuthModule } from "./auth/auth.module";
+import { User } from "./auth/Entities/User.entity";
 
 @Module({
 	imports: [
@@ -19,6 +20,8 @@ import { AuthModule } from "./auth/auth.module";
 			password: process.env.DB_PASSWORD || "password",
 			database: process.env.DB_DATABASE || "libry_dev_db",
 			synchronize: true,
+			entities: [User],
+			autoLoadEntities: true,
 		}),
 		AuthModule,
 	],
