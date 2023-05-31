@@ -6,10 +6,14 @@ import { OtpSendRequestDto } from "../Dto/OtpSend.request.dto";
 import { OtpVerifyRequestDto } from "../Dto/OtpVerify.request.dto";
 import { EmailValidateRequestDto } from "../Dto/EmailValidate.request.dto";
 import { SignUpRequestDto } from "../Dto/Signup.request.dto";
+import { AuthService } from "../Services/auth.service";
 
 @Controller("auth")
 export class AuthController {
-	constructor(private awsCognitoService: AwsCognitoService) {}
+	constructor(
+		private awsCognitoService: AwsCognitoService,
+		private authService: AuthService,
+	) {}
 
 	@Post("register")
 	async register(@Body() registerDto: RegisterRequestDto) {
@@ -17,17 +21,23 @@ export class AuthController {
 	}
 
 	@Post("otp")
-	async sendOtp(@Body() otpSendDto: OtpSendRequestDto) {}
+	async sendOtp(@Body() otpSendDto: OtpSendRequestDto) {
+		return await this.authService.sendOtp(otpSendDto);
+	}
 
 	@Post("otp/verify")
-	async verifyOtp(@Body() otpVerifyDto: OtpVerifyRequestDto) {}
+	async verifyOtp(@Body() otpVerifyDto: OtpVerifyRequestDto) {
+		return await this.authService.verifyOtp(otpVerifyDto);
+	}
 
 	@Post("email")
-	async email(@Body() emailValidateDto: EmailValidateRequestDto) {}
+	async email(@Body() emailValidateDto: EmailValidateRequestDto) {
+		this.authService.insertEmail(emailValidateDto);
+	}
 
 	@Post("signup")
 	async signUp(@Body() sigupDto: SignUpRequestDto) {}
- 
+
 	@Post("login")
 	async login(@Body() loginDto: LoginRequestDto) {
 		return await this.awsCognitoService.loginUser(loginDto);

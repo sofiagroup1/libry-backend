@@ -12,6 +12,9 @@ export class User {
 	email: string;
 
 	@Column({ unique: true, nullable: false })
+	phone_number: string;
+
+	@Column({ unique: true, nullable: false })
 	cognitoSub: string;
 
 	@Column({ default: false })

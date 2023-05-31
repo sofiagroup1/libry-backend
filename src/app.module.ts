@@ -5,7 +5,7 @@ import { AppService } from "./app.service";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { AuthModule } from "./auth/auth.module";
 import { User } from "./auth/Entities/User.entity";
-import { Otp } from "./auth/Entities/Otp.entity";
+import { SignUpAuthSession } from "./auth/Entities/signup_auth_session.entity";
 
 @Module({
 	imports: [
@@ -21,7 +21,7 @@ import { Otp } from "./auth/Entities/Otp.entity";
 			password: process.env.DB_PASSWORD || "password",
 			database: process.env.DB_DATABASE || "libry_dev_db",
 			synchronize: true,
-			entities: [User, Otp],
+			entities: [User, SignUpAuthSession],
 			autoLoadEntities: true,
 		}),
 		AuthModule,

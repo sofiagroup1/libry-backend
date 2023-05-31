@@ -3,8 +3,8 @@ import { IsEmail, IsString, IsUUID, Matches } from "class-validator";
 
 export class SignUpRequestDto {
 	@IsUUID()
-    @ApiProperty()
-    token: string;
+	@ApiProperty()
+	token: string;
 
 	// Match AWS default password requirements
 	// Minimum eight characters, at least one uppercase letter, one lowercase letter, one number, and one special character
@@ -14,4 +14,8 @@ export class SignUpRequestDto {
 	)
 	@ApiProperty()
 	password: string;
+
+	@IsString()
+	@ApiProperty()
+	device_id: string;
 }
