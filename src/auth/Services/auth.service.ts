@@ -7,18 +7,18 @@ import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { createHash, randomBytes } from "crypto";
 import { Configs } from "src/app.constants";
+import { ResponseBody } from "src/app.types";
 import * as Twilio from "twilio";
 import { FindOptionsWhere, Repository } from "typeorm";
 import { EmailValidateRequestDto } from "../Dto/EmailValidate.request.dto";
+import { LoginRequestDto } from "../Dto/Login.request.dto";
 import { OtpSendRequestDto } from "../Dto/OtpSend.request.dto";
 import { OtpVerifyRequestDto } from "../Dto/OtpVerify.request.dto";
 import { SignUpRequestDto } from "../Dto/Signup.request.dto";
 import { User } from "../Entities/User.entity";
 import { SignUpAuthSession } from "../Entities/signup_auth_session.entity";
-import { AwsCognitoService } from "./aws-cognito.service";
-import { ResponseBody } from "src/app.types";
-import { LoginRequestDto } from "../Dto/Login.request.dto";
 import { UserService } from "./User.service";
+import { AwsCognitoService } from "./aws-cognito.service";
 
 @Injectable()
 export class AuthService {
@@ -110,7 +110,7 @@ export class AuthService {
 			throw new UnprocessableEntityException("Invalid device id");
 		}
 		if (session.is_phone_number_taken) {
-			throw new UnprocessableEntityException("Phone number taken");
+			throw new ForbiddenException("Phone number taken");
 		}
 
 		const otpStatus = await this.twilioClient.verify.v2
@@ -173,7 +173,7 @@ export class AuthService {
 			// If existing user, ends signup flow
 			this.signupSessionRepository.delete({ id: session.id });
 
-			throw new UnprocessableEntityException("Email taken");
+			throw new ForbiddenException("Email taken");
 		}
 
 		const new_token = this._generateToken(session.device_id);
@@ -233,11 +233,6 @@ export class AuthService {
 			message: "SUCCESS",
 			data: { user: user, tokens },
 		};
-
-		// TODO do signup
-		// TODO activate account
-		// TODO login
-		// TODO get tokens
 	}
 
 	async loginUser(loginRequest: LoginRequestDto): Promise<ResponseBody<any>> {

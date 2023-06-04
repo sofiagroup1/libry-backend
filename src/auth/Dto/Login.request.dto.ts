@@ -17,6 +17,9 @@ export class LoginRequestDto {
 		/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[$&+,:;=?@#|'<>.^*()%!-])[A-Za-z\d@$&+,:;=?@#|'<>.^*()%!-]{8,}$/,
 		{ message: "invalid password" },
 	)
-	@ApiProperty()
+	@ApiProperty({
+		description:
+			"Password Minimum eight characters, at least one uppercase letter, one lowercase letter, one number, and one special character",
+	})
 	password: string;
 }

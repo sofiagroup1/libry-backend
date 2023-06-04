@@ -2,8 +2,8 @@ import { ApiProperty } from "@nestjs/swagger";
 import { IsEmail, IsString, IsUUID, Matches } from "class-validator";
 
 export class SignUpRequestDto {
-	@IsUUID()
-	@ApiProperty()
+	@IsString()
+	@ApiProperty({ description: "session token from previous response" })
 	token: string;
 
 	// Match AWS default password requirements
@@ -12,10 +12,13 @@ export class SignUpRequestDto {
 		/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[$&+,:;=?@#|'<>.^*()%!-])[A-Za-z\d@$&+,:;=?@#|'<>.^*()%!-]{8,}$/,
 		{ message: "invalid password" },
 	)
-	@ApiProperty()
+	@ApiProperty({
+		description:
+			"Password Minimum eight characters, at least one uppercase letter, one lowercase letter, one number, and one special character",
+	})
 	password: string;
 
 	@IsString()
-	@ApiProperty()
+	@ApiProperty({ description: "Device ID" })
 	device_id: string;
 }

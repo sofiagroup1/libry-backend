@@ -1,16 +1,16 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsString, IsUUID } from "class-validator";
+import { IsString } from "class-validator";
 
 export class EmailValidateRequestDto {
 	@IsString()
-	@ApiProperty()
+	@ApiProperty({ description: "Device ID" })
 	device_id: string;
 
 	@IsString()
 	@ApiProperty()
 	email: string;
 
-	@IsUUID()
-	@ApiProperty()
+	@IsString()
+	@ApiProperty({ description: "session token from previous response" })
 	token: string;
 }

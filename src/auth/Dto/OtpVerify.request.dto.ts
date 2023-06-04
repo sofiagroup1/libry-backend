@@ -1,16 +1,16 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsString, IsUUID } from "class-validator";
+import { IsString } from "class-validator";
 
 export class OtpVerifyRequestDto {
 	@IsString()
-	@ApiProperty()
+	@ApiProperty({ description: "Device ID" })
 	device_id: string;
 
 	@IsString()
 	@ApiProperty()
 	otp_code: string;
 
-	@IsUUID()
-	@ApiProperty()
+	@IsString()
+	@ApiProperty({ description: "session token from previous response" })
 	token: string;
 }

@@ -3,9 +3,9 @@ import { IsMobilePhone } from "class-validator";
 
 export class OtpSendRequestDto {
 	@IsMobilePhone()
-	@ApiProperty()
+	@ApiProperty({ description: "Mobile number", example: "+94770000000" })
 	mobile_number: string;
 
-	@ApiProperty()
+	@ApiProperty({ description: "Device ID" })
 	device_id: string;
 }
