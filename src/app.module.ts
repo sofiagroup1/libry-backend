@@ -6,7 +6,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { AuthModule } from "./auth/auth.module";
 import { User } from "./auth/Entities/User.entity";
 import { SignUpAuthSession } from "./auth/Entities/signup_auth_session.entity";
-import Joi from "joi"
+import * as Joi from "joi";
 
 @Module({
 	imports: [
@@ -25,11 +25,13 @@ import Joi from "joi"
 				AWS_COGNITO_CLIENT_ID: Joi.string().required(),
 				AWS_COGNITO_REGION: Joi.string().required(),
 				AWS_COGNITO_DOMAIN_URL: Joi.string().required(),
+				AWS_ACCESS_KEY: Joi.string().required(),
+				AWS_SECRET_ACCESS_KEY: Joi.string().required(),
 				// TWILIO
 				TWILIO_ACCOUNT_SID: Joi.string().required(),
-        		TWILIO_AUTH_TOKEN: Joi.string().required(),
-        		TWILIO_VERIFICATION_SERVICE_SID: Joi.string().required()
-			})
+				TWILIO_AUTH_TOKEN: Joi.string().required(),
+				TWILIO_VERIFICATION_SERVICE_SID: Joi.string().required(),
+			}),
 		}),
 		TypeOrmModule.forRoot({
 			type: "postgres",

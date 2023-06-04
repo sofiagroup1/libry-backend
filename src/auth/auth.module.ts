@@ -8,13 +8,20 @@ import { UserService } from "./Services/User.service";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { User } from "./Entities/User.entity";
 import { SignUpAuthSession } from "./Entities/signup_auth_session.entity";
+import { AuthService } from "./Services/auth.service";
 
 @Module({
 	imports: [
 		PassportModule.register({ defaultStrategy: "jwt" }),
 		TypeOrmModule.forFeature([User, SignUpAuthSession]),
 	],
-	providers: [AWSCognitoConfig, AwsCognitoService, JwtStrategy, UserService],
+	providers: [
+		AWSCognitoConfig,
+		AwsCognitoService,
+		JwtStrategy,
+		UserService,
+		AuthService,
+	],
 	controllers: [AuthController],
 })
 export class AuthModule {}

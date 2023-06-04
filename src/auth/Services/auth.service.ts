@@ -1,25 +1,33 @@
-import { Injectable, UnprocessableEntityException } from "@nestjs/common";
-import { SignUpAuthSession } from "../Entities/signup_auth_session.entity";
-import { Repository } from "typeorm";
-import { InjectRepository } from "@nestjs/typeorm";
-import { OtpSendRequestDto } from "../Dto/OtpSend.request.dto";
-import { createHash, randomBytes } from "crypto";
-import { User } from "../Entities/User.entity";
-import { OtpVerifyRequestDto } from "../Dto/OtpVerify.request.dto";
-import { EmailValidateRequestDto } from "../Dto/EmailValidate.request.dto";
-import { SignUpRequestDto } from "../Dto/Signup.request.dto";
+import {
+	ForbiddenException,
+	Injectable,
+	UnprocessableEntityException,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import Twilio from "twilio";
+import { InjectRepository } from "@nestjs/typeorm";
+import { createHash, randomBytes } from "crypto";
 import { Configs } from "src/app.constants";
+import * as Twilio from "twilio";
+import { FindOptionsWhere, Repository } from "typeorm";
+import { EmailValidateRequestDto } from "../Dto/EmailValidate.request.dto";
+import { OtpSendRequestDto } from "../Dto/OtpSend.request.dto";
+import { OtpVerifyRequestDto } from "../Dto/OtpVerify.request.dto";
+import { SignUpRequestDto } from "../Dto/Signup.request.dto";
+import { User } from "../Entities/User.entity";
+import { SignUpAuthSession } from "../Entities/signup_auth_session.entity";
+import { AwsCognitoService } from "./aws-cognito.service";
+import { ResponseBody } from "src/app.types";
+import { LoginRequestDto } from "../Dto/Login.request.dto";
+import { UserService } from "./User.service";
 
 @Injectable()
 export class AuthService {
 	constructor(
 		@InjectRepository(SignUpAuthSession)
 		private signupSessionRepository: Repository<SignUpAuthSession>,
-		@InjectRepository(User)
-		private userRepository: Repository<User>,
+		private userService: UserService,
 		private readonly configService: ConfigService,
+		private awsCognitoService: AwsCognitoService,
 	) {}
 
 	private twilioClient = Twilio(
@@ -27,11 +35,31 @@ export class AuthService {
 		this.configService.get(Configs.TWILIO_AUTH_TOKEN),
 	);
 
-	async sendOtp(otpSendDto: OtpSendRequestDto) {
+	async signupStepOne(
+		otpSendDto: OtpSendRequestDto,
+	): Promise<ResponseBody<{ token: string }>> {
 		const { device_id, mobile_number } = otpSendDto;
 
+		// Check if another session is active
+		const isSessionAvailable = await this.signupSessionRepository.findOne({
+			where: {
+				device_id: device_id,
+				phone_number: mobile_number,
+			},
+		});
+		if (isSessionAvailable !== null) {
+			// remove previous session
+			await this.signupSessionRepository.delete({ id: isSessionAvailable.id });
+			// Session is not expired
+			if (isSessionAvailable.expires_in >= new Date()) {
+				throw new UnprocessableEntityException(
+					"Previous Sign up is active, try again",
+				);
+			}
+		}
+
 		// Send otp even if phone number is taken
-		const userFound = this.userRepository.findOne({
+		const userFound = await this.userService.findUser({
 			where: { phone_number: mobile_number },
 		});
 
@@ -42,8 +70,10 @@ export class AuthService {
 		session.device_id = device_id;
 		session.phone_number = mobile_number;
 		session.is_phone_number_taken = userFound !== null;
+		session.otp_try_count = 0;
+		session.phone_number_verified = "NOT_VERIFIED";
+		session.expires_in = new Date(new Date().getTime() + 10 * 60000);
 
-		// TODO send twilio otp
 		this.twilioClient.verify.v2
 			.services(this.configService.get(Configs.TWILIO_VERIFICATION_SERVICE_SID))
 			.verifications.create({ to: mobile_number, channel: "sms" })
@@ -58,12 +88,14 @@ export class AuthService {
 		const saved_session = await this.signupSessionRepository.save(session);
 
 		return {
-			token: saved_session.token,
-			message: "OTP_SENT",
+			data: { token: saved_session.token },
+			message: "SENT OTP",
 		};
 	}
 
-	async verifyOtp(otpVerifyDto: OtpVerifyRequestDto) {
+	async signupStepTwo(
+		otpVerifyDto: OtpVerifyRequestDto,
+	): Promise<ResponseBody<{ token: string }>> {
 		const { device_id, otp_code, token } = otpVerifyDto;
 
 		// Find session
@@ -72,39 +104,54 @@ export class AuthService {
 		});
 		// validate session
 		if (session === null) {
-			throw new UnprocessableEntityException("Invalid token");
+			throw new UnprocessableEntityException("Invalid session");
 		}
 		if (session.device_id !== device_id) {
 			throw new UnprocessableEntityException("Invalid device id");
+		}
+		if (session.is_phone_number_taken) {
+			throw new UnprocessableEntityException("Phone number taken");
 		}
 
 		const otpStatus = await this.twilioClient.verify.v2
 			.services(this.configService.get(Configs.TWILIO_VERIFICATION_SERVICE_SID))
 			.verificationChecks.create({ to: session.phone_number, code: otp_code });
 
+		session.otp_try_count = session.otp_try_count + 1;
+
+		const new_token = this._generateToken(session.device_id);
+		session.token = new_token;
+
 		if (otpStatus.status === "approved") {
-			const new_token = this._generateToken(session.device_id);
-			session.token = new_token;
 			session.phone_number_verified = "VERIFIED";
 			session.status = "OTP_VERIFIED";
 
 			const new_session = await this.signupSessionRepository.save(session);
 
+			// SUCCESS
 			return {
-				token: new_session.token,
-				message: "OTP_VERIFIED",
+				data: {
+					token: new_session.token,
+				},
+				message: "OTP VERIFIED",
 			};
 		} else {
 			session.status = "OTP_FAILED";
 
-			await this.signupSessionRepository.save(session);
+			if (session.otp_try_count > 3) {
+				// If otp code enters for maximum of 3 times end session
+				this.signupSessionRepository.delete({ id: session.id });
+				throw new ForbiddenException("OTP retry exceeds");
+			}
 
-			// TODO
-			throw new UnprocessableEntityException("OTP code invalid");
+			await this.signupSessionRepository.save(session);
+			throw new UnprocessableEntityException("Invalid OTP");
 		}
 	}
 
-	async insertEmail(emailValidateDto: EmailValidateRequestDto) {
+	async signupStepThree(
+		emailValidateDto: EmailValidateRequestDto,
+	): Promise<ResponseBody<{ token: string }>> {
 		const { device_id, email, token } = emailValidateDto;
 		// Find session
 		const session = await this.signupSessionRepository.findOne({
@@ -118,16 +165,15 @@ export class AuthService {
 			throw new UnprocessableEntityException("Invalid device id");
 		}
 
-		const userFound = this.userRepository.findOne({
+		const userFound = await this.userService.findUser({
 			where: { email: email },
 		});
 
 		if (userFound !== null) {
 			// If existing user, ends signup flow
 			this.signupSessionRepository.delete({ id: session.id });
-			return {
-				message: "EXISTING_USER",
-			};
+
+			throw new UnprocessableEntityException("Email taken");
 		}
 
 		const new_token = this._generateToken(session.device_id);
@@ -138,13 +184,16 @@ export class AuthService {
 
 		const saved_session = await this.signupSessionRepository.save(session);
 
+		// SUCCESS
 		return {
-			token: saved_session.token,
+			data: { token: saved_session.token },
 			message: "EMAIL_ADDED",
 		};
 	}
 
-	async signUp(signupDto: SignUpRequestDto) {
+	async signupStepFinal(
+		signupDto: SignUpRequestDto,
+	): Promise<ResponseBody<{ user: User; tokens: any }>> {
 		const { password, token, device_id } = signupDto;
 
 		// Find session
@@ -158,12 +207,67 @@ export class AuthService {
 		if (session.device_id !== device_id) {
 			throw new UnprocessableEntityException("Invalid device id");
 		}
+		if (session.status !== "EMAIL_ADDED") {
+			throw new ForbiddenException("Not allowed");
+		}
 
-		// TODO cognito
+		let user = await this.awsCognitoService.registerUser({
+			email: session.email,
+			phone_number: session.phone_number,
+			password: password,
+		});
+
+		user = await this.awsCognitoService.confirmAccount({
+			username: user.cognitoSub,
+			userId: user.id,
+		});
+
+		await this.signupSessionRepository.delete({ id: session.id });
+
+		const tokens = await this.awsCognitoService.loginUser({
+			username: user.cognitoSub,
+			password,
+		});
+
+		return {
+			message: "SUCCESS",
+			data: { user: user, tokens },
+		};
+
 		// TODO do signup
 		// TODO activate account
 		// TODO login
 		// TODO get tokens
+	}
+
+	async loginUser(loginRequest: LoginRequestDto): Promise<ResponseBody<any>> {
+		const { email, password, phone_number } = loginRequest;
+
+		// Find user details from email or phone number
+		let where: FindOptionsWhere<User>;
+		if (email !== null) {
+			where = { ...where, email };
+		}
+		if (phone_number !== null) {
+			where = { ...where, phone_number };
+		}
+		const userFound = await this.userService.findUser({
+			where,
+		});
+
+		if (userFound === null) {
+			throw new UnprocessableEntityException("Username or password invalid");
+		}
+
+		const username = userFound.cognitoSub; // AWS Cognito username is users phone number
+
+		// Call aws cognito
+		const tokens = await this.awsCognitoService.loginUser({
+			username,
+			password,
+		});
+
+		return { data: tokens, message: "SUCCESS" };
 	}
 
 	private _generateToken(payload: string) {

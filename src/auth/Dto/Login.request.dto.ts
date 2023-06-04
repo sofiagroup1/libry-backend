@@ -1,10 +1,16 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsEmail, Matches } from "class-validator";
+import { IsEmail, IsOptional, IsString, Matches } from "class-validator";
 
 export class LoginRequestDto {
+	@IsOptional()
 	@IsEmail()
 	@ApiProperty()
 	email: string;
+
+	@IsOptional()
+	@IsString()
+	@ApiProperty()
+	phone_number: string;
 
 	// Match AWS default password requirements
 	@Matches(

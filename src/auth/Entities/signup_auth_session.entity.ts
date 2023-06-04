@@ -25,10 +25,10 @@ export class SignUpAuthSession {
 	@Column()
 	phone_number_verified: "NOT_VERIFIED" | "VERIFIED";
 
-	@Column()
+	@Column({ nullable: true })
 	is_phone_number_taken: boolean;
 
-	@Column()
+	@Column({ nullable: true })
 	email: string;
 
 	@Column()
@@ -40,9 +40,15 @@ export class SignUpAuthSession {
 		| "EMAIL_ADDED"
 		| "ACCOUNT_CREATED";
 
+	@Column()
+	otp_try_count: number;
+
 	@CreateDateColumn()
 	created_at: Date;
 
 	@UpdateDateColumn()
 	updated_at: Date;
+
+	@Column()
+	expires_in: Date;
 }
