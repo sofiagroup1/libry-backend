@@ -8,6 +8,9 @@ import { User } from "../Entities/User.entity";
 import { OtpVerifyRequestDto } from "../Dto/OtpVerify.request.dto";
 import { EmailValidateRequestDto } from "../Dto/EmailValidate.request.dto";
 import { SignUpRequestDto } from "../Dto/Signup.request.dto";
+import { ConfigService } from "@nestjs/config";
+import Twilio from "twilio";
+import { Configs } from "src/app.constants";
 
 @Injectable()
 export class AuthService {
@@ -16,7 +19,13 @@ export class AuthService {
 		private signupSessionRepository: Repository<SignUpAuthSession>,
 		@InjectRepository(User)
 		private userRepository: Repository<User>,
+		private readonly configService: ConfigService,
 	) {}
+
+	private twilioClient = Twilio(
+		this.configService.get(Configs.TWILIO_ACCOUNT_SID),
+		this.configService.get(Configs.TWILIO_AUTH_TOKEN),
+	);
 
 	async sendOtp(otpSendDto: OtpSendRequestDto) {
 		const { device_id, mobile_number } = otpSendDto;
@@ -28,7 +37,6 @@ export class AuthService {
 
 		const token = this._generateToken(device_id);
 		const session = new SignUpAuthSession();
-		session.phone_number_verified = "NOT_VERIFIED";
 		session.status = "INIT";
 		session.token = token;
 		session.device_id = device_id;
@@ -36,6 +44,16 @@ export class AuthService {
 		session.is_phone_number_taken = userFound !== null;
 
 		// TODO send twilio otp
+		this.twilioClient.verify.v2
+			.services(this.configService.get(Configs.TWILIO_VERIFICATION_SERVICE_SID))
+			.verifications.create({ to: mobile_number, channel: "sms" })
+			.then(() => {
+				session.phone_number_verified = "NOT_VERIFIED";
+				session.status = "OTP_SENT";
+			})
+			.catch((err) => {
+				// TODO Add logging
+			});
 
 		const saved_session = await this.signupSessionRepository.save(session);
 
@@ -60,12 +78,30 @@ export class AuthService {
 			throw new UnprocessableEntityException("Invalid device id");
 		}
 
-		// TODO Twilio verify otp
+		const otpStatus = await this.twilioClient.verify.v2
+			.services(this.configService.get(Configs.TWILIO_VERIFICATION_SERVICE_SID))
+			.verificationChecks.create({ to: session.phone_number, code: otp_code });
 
-		const new_token = this._generateToken(session.device_id);
+		if (otpStatus.status === "approved") {
+			const new_token = this._generateToken(session.device_id);
+			session.token = new_token;
+			session.phone_number_verified = "VERIFIED";
+			session.status = "OTP_VERIFIED";
 
-		session.token = new_token;
-		session.status = "OTP_VERIFIED";
+			const new_session = await this.signupSessionRepository.save(session);
+
+			return {
+				token: new_session.token,
+				message: "OTP_VERIFIED",
+			};
+		} else {
+			session.status = "OTP_FAILED";
+
+			await this.signupSessionRepository.save(session);
+
+			// TODO
+			throw new UnprocessableEntityException("OTP code invalid");
+		}
 	}
 
 	async insertEmail(emailValidateDto: EmailValidateRequestDto) {

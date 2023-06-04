@@ -36,6 +36,7 @@ export class SignUpAuthSession {
 		| "INIT"
 		| "OTP_SENT"
 		| "OTP_VERIFIED"
+		| "OTP_FAILED"
 		| "EMAIL_ADDED"
 		| "ACCOUNT_CREATED";
 
