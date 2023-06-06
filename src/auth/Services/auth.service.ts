@@ -122,10 +122,9 @@ export class AuthService {
 
 		session.otp_try_count = session.otp_try_count + 1;
 
-		const new_token = this._generateToken(session.device_id);
-		session.token = new_token;
-
 		if (otpStatus.status === "approved") {
+			const new_token = this._generateToken(session.device_id);
+			session.token = new_token;
 			session.phone_number_verified = "VERIFIED";
 			session.status = "OTP_VERIFIED";
 
@@ -141,7 +140,7 @@ export class AuthService {
 		} else {
 			session.status = "OTP_FAILED";
 
-			if (session.otp_try_count < 3) {
+			if (session.otp_try_count > 3) {
 				// If otp code enters for maximum of 3 times end session
 				await this.signupSessionRepository.delete({ id: session.id });
 				throw new ForbiddenException("OTP retry exceeds");

@@ -3,6 +3,7 @@ import {
 	ApiForbiddenResponse,
 	ApiInternalServerErrorResponse,
 	ApiOkResponse,
+	ApiTags,
 	ApiUnprocessableEntityResponse,
 } from "@nestjs/swagger";
 import { EmailValidateRequestDto } from "../Dto/EmailValidate.request.dto";
@@ -11,8 +12,10 @@ import { OtpSendRequestDto } from "../Dto/OtpSend.request.dto";
 import { OtpVerifyRequestDto } from "../Dto/OtpVerify.request.dto";
 import { SignUpRequestDto } from "../Dto/Signup.request.dto";
 import { AuthService } from "../Services/auth.service";
+import { PasswordResetDto } from "../Dto/PasswordReset.request.dto";
 
 @Controller("auth")
+@ApiTags("Authentication")
 export class AuthController {
 	constructor(private authService: AuthService) {}
 
@@ -103,4 +106,6 @@ export class AuthController {
 	async login(@Body() loginDto: LoginRequestDto) {
 		return await this.authService.loginUser(loginDto);
 	}
+
+	// async resetPassword(@Body() resetDto: PasswordResetDto) {}
 }

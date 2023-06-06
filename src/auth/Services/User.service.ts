@@ -17,6 +17,9 @@ export class UserService {
 			id: data.id,
 			name: data.name,
 			userConfirmed: data.userConfirmed,
+			email_verified: data.email_verified,
+			phone_number: data.phone_number,
+			phone_number_verified: data.phone_number_verified,
 		};
 
 		return dto;
