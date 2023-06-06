@@ -1,3 +1,8 @@
+import {
+	AdminConfirmSignUpCommand,
+	AdminUpdateUserAttributesCommand,
+	CognitoIdentityProviderClient,
+} from "@aws-sdk/client-cognito-identity-provider";
 import { Injectable } from "@nestjs/common";
 import {
 	AuthenticationDetails,
@@ -5,15 +10,9 @@ import {
 	CognitoUserAttribute,
 	CognitoUserPool,
 } from "amazon-cognito-identity-js";
-import { LoginRequestDto } from "../Dto/Login.request.dto";
-import { RegisterRequestDto } from "../Dto/Register.request.dto";
 import { User } from "../Entities/User.entity";
 import { AWSCognitoConfig } from "../aws-cognito.config";
 import { UserService } from "./User.service";
-import {
-	CognitoIdentityProviderClient,
-	AdminConfirmSignUpCommand,
-} from "@aws-sdk/client-cognito-identity-provider";
 
 @Injectable()
 export class AwsCognitoService {
@@ -79,7 +78,7 @@ export class AwsCognitoService {
 		});
 	}
 
-	async confirmAccount(data: {
+	async adminConfirmAccount(data: {
 		username: string;
 		userId: string;
 	}): Promise<User> {
@@ -96,6 +95,34 @@ export class AwsCognitoService {
 
 				const user = await this.userService.markUserConfirmedStatus(
 					userId,
+					true,
+				);
+
+				resolve(user);
+			});
+		});
+	}
+
+	async adminVerifyAttribute(data: {
+		username: string;
+		userId: string;
+		attribute: "phone_number_verified" | "email_verified";
+	}): Promise<User> {
+		const { userId, username, attribute } = data;
+
+		const command = new AdminUpdateUserAttributesCommand({
+			UserPoolId: this.awsCognitoConfig.userPoolID,
+			Username: username,
+			UserAttributes: [{ Name: attribute, Value: "true" }],
+		});
+
+		return new Promise((resolve, reject) => {
+			this.awsClient.send(command).then(async (value) => {
+				console.log(value);
+
+				const user = await this.userService.markVerifiedStatus(
+					userId,
+					attribute,
 					true,
 				);
 

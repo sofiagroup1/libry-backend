@@ -36,4 +36,21 @@ export class UserService {
 	async create(data: User) {
 		return await this.userRepository.save(data);
 	}
+
+	async markVerifiedStatus(
+		userId: string,
+		attribute: "email_verified" | "phone_number_verified",
+		status: boolean,
+	) {
+		const user = await this.userRepository.findOne({ where: { id: userId } });
+
+		if (attribute === "email_verified") {
+			user.email_verified = status;
+		}
+		if (attribute === "phone_number_verified") {
+			user.phone_number_verified = status;
+		}
+
+		return await this.userRepository.save(user);
+	}
 }

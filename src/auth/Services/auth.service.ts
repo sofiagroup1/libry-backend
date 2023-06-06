@@ -82,6 +82,7 @@ export class AuthService {
 				session.status = "OTP_SENT";
 			})
 			.catch((err) => {
+				throw new UnprocessableEntityException(`Twilio exception: ${err}`);
 				// TODO Add logging
 			});
 
@@ -107,9 +108,11 @@ export class AuthService {
 			throw new UnprocessableEntityException("Invalid session");
 		}
 		if (session.device_id !== device_id) {
+			await this.signupSessionRepository.delete({ id: session.id });
 			throw new UnprocessableEntityException("Invalid device id");
 		}
 		if (session.is_phone_number_taken) {
+			await this.signupSessionRepository.delete({ id: session.id });
 			throw new ForbiddenException("Phone number taken");
 		}
 
@@ -138,9 +141,9 @@ export class AuthService {
 		} else {
 			session.status = "OTP_FAILED";
 
-			if (session.otp_try_count > 3) {
+			if (session.otp_try_count < 3) {
 				// If otp code enters for maximum of 3 times end session
-				this.signupSessionRepository.delete({ id: session.id });
+				await this.signupSessionRepository.delete({ id: session.id });
 				throw new ForbiddenException("OTP retry exceeds");
 			}
 
@@ -162,6 +165,7 @@ export class AuthService {
 			throw new UnprocessableEntityException("Invalid token");
 		}
 		if (session.device_id !== device_id) {
+			await this.signupSessionRepository.delete({ id: session.id });
 			throw new UnprocessableEntityException("Invalid device id");
 		}
 
@@ -172,9 +176,10 @@ export class AuthService {
 		if (userFound !== null) {
 			// If existing user, ends signup flow
 			this.signupSessionRepository.delete({ id: session.id });
-
 			throw new ForbiddenException("Email taken");
 		}
+
+		// TODO send email verify link
 
 		const new_token = this._generateToken(session.device_id);
 
@@ -205,9 +210,11 @@ export class AuthService {
 			throw new UnprocessableEntityException("Invalid token");
 		}
 		if (session.device_id !== device_id) {
+			await this.signupSessionRepository.delete({ id: session.id });
 			throw new UnprocessableEntityException("Invalid device id");
 		}
 		if (session.status !== "EMAIL_ADDED") {
+			await this.signupSessionRepository.delete({ id: session.id });
 			throw new ForbiddenException("Not allowed");
 		}
 
@@ -217,11 +224,20 @@ export class AuthService {
 			password: password,
 		});
 
-		user = await this.awsCognitoService.confirmAccount({
+		user = await this.awsCognitoService.adminConfirmAccount({
 			username: user.cognitoSub,
 			userId: user.id,
 		});
 
+		if (session.phone_number_verified === "VERIFIED") {
+			user = await this.awsCognitoService.adminVerifyAttribute({
+				username: user.cognitoSub,
+				userId: user.id,
+				attribute: "phone_number_verified",
+			});
+		}
+
+		// Remove session
 		await this.signupSessionRepository.delete({ id: session.id });
 
 		const tokens = await this.awsCognitoService.loginUser({
@@ -264,6 +280,8 @@ export class AuthService {
 
 		return { data: tokens, message: "SUCCESS" };
 	}
+
+	// async resetPassword() {}
 
 	private _generateToken(payload: string) {
 		const seed = randomBytes(20);
