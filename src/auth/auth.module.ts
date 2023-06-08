@@ -7,13 +7,22 @@ import { JwtStrategy } from "./jwt.strategy";
 import { UserService } from "./Services/User.service";
 import { TypeOrmModule } from "@nestjs/typeorm";
 import { User } from "./Entities/User.entity";
+import { SignUpAuthSession } from "./Entities/signup_auth_session.entity";
+import { AuthService } from "./Services/auth.service";
+import { ProfileController } from "./Controllers/profile.controller";
 
 @Module({
 	imports: [
 		PassportModule.register({ defaultStrategy: "jwt" }),
-		TypeOrmModule.forFeature([User]),
+		TypeOrmModule.forFeature([User, SignUpAuthSession]),
 	],
-	providers: [AWSCognitoConfig, AwsCognitoService, JwtStrategy, UserService],
-	controllers: [AuthController],
+	providers: [
+		AWSCognitoConfig,
+		AwsCognitoService,
+		JwtStrategy,
+		UserService,
+		AuthService,
+	],
+	controllers: [AuthController, ProfileController],
 })
 export class AuthModule {}

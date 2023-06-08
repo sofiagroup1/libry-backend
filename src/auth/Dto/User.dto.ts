@@ -11,5 +11,17 @@ export class UserDto {
 	email: string;
 
 	@ApiProperty()
+	email_verified: boolean;
+
+	@ApiProperty()
+	phone_number: string;
+
+	@ApiProperty()
+	phone_number_verified: boolean;
+
+	@ApiProperty()
 	userConfirmed: boolean;
+
+	@ApiProperty()
+	birth_date: Date;
 }
