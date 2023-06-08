@@ -21,4 +21,7 @@ export class UserDto {
 
 	@ApiProperty()
 	userConfirmed: boolean;
+
+	@ApiProperty()
+	birth_date: Date;
 }

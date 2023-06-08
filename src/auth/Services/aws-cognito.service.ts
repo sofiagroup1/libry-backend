@@ -157,4 +157,48 @@ export class AwsCognitoService {
 			});
 		});
 	}
+
+	async forgetPasswordSendOtp({ username }: { username: string }) {
+		const userData = { Username: username, Pool: this.userPool };
+
+		const userCognito = new CognitoUser(userData);
+
+		return new Promise((resolve, reject) => {
+			userCognito.forgotPassword({
+				onSuccess: (data) => {
+					console.log("Forgot pw data : ", data);
+					resolve(data);
+				},
+				onFailure: (err) => {
+					reject(err);
+				},
+			});
+		});
+	}
+
+	async confirmPassword({
+		username,
+		code,
+		new_password,
+	}: {
+		username: string;
+		code: string;
+		new_password: string;
+	}) {
+		const userData = { Username: username, Pool: this.userPool };
+
+		const userCognito = new CognitoUser(userData);
+
+		return new Promise((resolve, reject) => {
+			userCognito.confirmPassword(code, new_password, {
+				onSuccess: (data) => {
+					console.log("Forgot pw data : ", data);
+					resolve(data);
+				},
+				onFailure: (err) => {
+					reject(err);
+				},
+			});
+		});
+	}
 }

@@ -1,6 +1,7 @@
 import {
 	ForbiddenException,
 	Injectable,
+	NotFoundException,
 	UnprocessableEntityException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -280,7 +281,53 @@ export class AuthService {
 		return { data: tokens, message: "SUCCESS" };
 	}
 
-	// async resetPassword() {}
+	async sendResetPassword({
+		email,
+	}: {
+		email: string;
+	}): Promise<ResponseBody<any>> {
+		const user = await this.userService.findUser({ where: { email } });
+
+		if (!user) {
+			throw new NotFoundException("User not found");
+		}
+
+		const data = await this.awsCognitoService.forgetPasswordSendOtp({
+			username: user.cognitoSub,
+		});
+
+		return { data: data, message: "RESET OTP SENT" };
+	}
+
+	async confirmPassword({
+		code,
+		email,
+		new_password,
+	}: {
+		email: string;
+		new_password: string;
+		code: string;
+	}) {
+		const user = await this.userService.findUser({ where: { email } });
+
+		if (!user) {
+			throw new NotFoundException("User not found");
+		}
+
+		const data = await this.awsCognitoService.confirmPassword({
+			username: user.cognitoSub,
+			new_password,
+			code,
+		});
+
+		return { data: data, message: "PASSWORD CHANGED" };
+	}
+
+	async validateUser(cognitoSub: string) {
+		return await this.userService.findUser({
+			where: { cognitoSub: cognitoSub },
+		});
+	}
 
 	private _generateToken(payload: string) {
 		const seed = randomBytes(20);

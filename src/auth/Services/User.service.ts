@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { FindOneOptions, Repository } from "typeorm";
+import { FindOneOptions, FindOptionsWhere, Repository } from "typeorm";
 import { User } from "../Entities/User.entity";
 import { InjectRepository } from "@nestjs/typeorm";
 import { UserDto } from "../Dto/User.dto";
@@ -13,12 +13,13 @@ export class UserService {
 
 	toUserDto(data: User): UserDto {
 		const dto: UserDto = {
-			email: data.email,
 			id: data.id,
+			email: data.email,
+			phone_number: data.phone_number,
 			name: data.name,
+			birth_date: data.birth_date,
 			userConfirmed: data.userConfirmed,
 			email_verified: data.email_verified,
-			phone_number: data.phone_number,
 			phone_number_verified: data.phone_number_verified,
 		};
 
@@ -29,15 +30,21 @@ export class UserService {
 		return await this.userRepository.findOne(options);
 	}
 
+	async create(data: User) {
+		return await this.userRepository.save(data);
+	}
+
+	async edit(where: FindOptionsWhere<User>, data: User) {
+		const org_data = await this.userRepository.findOne({ where });
+		const mut_data = { ...org_data, ...data };
+		return await this.userRepository.save(mut_data);
+	}
+
 	async markUserConfirmedStatus(userId: string, status: boolean) {
 		const user = await this.userRepository.findOne({ where: { id: userId } });
 
 		user.userConfirmed = status;
 		return await this.userRepository.save(user);
-	}
-
-	async create(data: User) {
-		return await this.userRepository.save(data);
 	}
 
 	async markVerifiedStatus(

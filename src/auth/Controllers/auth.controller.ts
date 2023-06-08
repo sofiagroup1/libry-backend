@@ -10,9 +10,9 @@ import { EmailValidateRequestDto } from "../Dto/EmailValidate.request.dto";
 import { LoginRequestDto } from "../Dto/Login.request.dto";
 import { OtpSendRequestDto } from "../Dto/OtpSend.request.dto";
 import { OtpVerifyRequestDto } from "../Dto/OtpVerify.request.dto";
+import { PasswordResetDto } from "../Dto/PasswordReset.request.dto";
 import { SignUpRequestDto } from "../Dto/Signup.request.dto";
 import { AuthService } from "../Services/auth.service";
-import { PasswordResetDto } from "../Dto/PasswordReset.request.dto";
 
 @Controller("auth")
 @ApiTags("Authentication")
@@ -107,5 +107,7 @@ export class AuthController {
 		return await this.authService.loginUser(loginDto);
 	}
 
-	// async resetPassword(@Body() resetDto: PasswordResetDto) {}
+	async resetPassword(@Body() resetDto: PasswordResetDto) {
+		return await this.authService.sendResetPassword({ email: resetDto.email });
+	}
 }

@@ -9,6 +9,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { User } from "./Entities/User.entity";
 import { SignUpAuthSession } from "./Entities/signup_auth_session.entity";
 import { AuthService } from "./Services/auth.service";
+import { ProfileController } from "./Controllers/profile.controller";
 
 @Module({
 	imports: [
@@ -22,6 +23,6 @@ import { AuthService } from "./Services/auth.service";
 		UserService,
 		AuthService,
 	],
-	controllers: [AuthController],
+	controllers: [AuthController, ProfileController],
 })
 export class AuthModule {}
