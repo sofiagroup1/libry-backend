@@ -6,12 +6,15 @@ import {
 	ApiTags,
 	ApiUnprocessableEntityResponse,
 } from "@nestjs/swagger";
+import { ApiOkResponseBody } from "src/Decorators/ApiResponseBody.decorator";
 import { EmailValidateRequestDto } from "../Dto/EmailValidate.request.dto";
 import { LoginRequestDto } from "../Dto/Login.request.dto";
 import { OtpSendRequestDto } from "../Dto/OtpSend.request.dto";
 import { OtpVerifyRequestDto } from "../Dto/OtpVerify.request.dto";
 import { PasswordResetDto } from "../Dto/PasswordReset.request.dto";
 import { SignUpRequestDto } from "../Dto/Signup.request.dto";
+import { SignupResponseDto } from "../Dto/Signup.response.dto";
+import { SessionTokenResponse } from "../Dto/Token.response.dto";
 import { AuthService } from "../Services/auth.service";
 
 @Controller("auth")
@@ -20,8 +23,9 @@ export class AuthController {
 	constructor(private authService: AuthService) {}
 
 	@Post("signup/otp")
-	@ApiOkResponse({
+	@ApiOkResponseBody({
 		description: "OTP Sent and signup session created successfully",
+		type: SessionTokenResponse,
 	})
 	@ApiUnprocessableEntityResponse({
 		status: 422,
@@ -35,8 +39,9 @@ export class AuthController {
 	}
 
 	@Post("signup/otp-verify")
-	@ApiOkResponse({
+	@ApiOkResponseBody({
 		description: "OTP verified and signup session updated successfully",
+		type: SessionTokenResponse,
 	})
 	@ApiUnprocessableEntityResponse({
 		status: 422,
@@ -55,8 +60,9 @@ export class AuthController {
 	}
 
 	@Post("signup/email")
-	@ApiOkResponse({
+	@ApiOkResponseBody({
 		description: "signup session updated successfully",
+		type: SessionTokenResponse,
 	})
 	@ApiUnprocessableEntityResponse({
 		status: 422,
@@ -74,8 +80,9 @@ export class AuthController {
 	}
 
 	@Post("signup/register")
-	@ApiOkResponse({
+	@ApiOkResponseBody({
 		description: "User created and tokens generated successfully",
+		type: SignupResponseDto,
 	})
 	@ApiUnprocessableEntityResponse({
 		status: 422,
