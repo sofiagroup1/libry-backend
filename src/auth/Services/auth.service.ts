@@ -21,6 +21,7 @@ import { UserService } from "./User.service";
 import { AwsCognitoService } from "./aws-cognito.service";
 import { ResponseDto } from "src/Dtos/Response.dto";
 import { UserDto } from "../Dto/User.dto";
+import { VerificationInstance } from "twilio/lib/rest/verify/v2/service/verification";
 
 @Injectable()
 export class AuthService {
@@ -76,17 +77,22 @@ export class AuthService {
 		session.phone_number_verified = "NOT_VERIFIED";
 		session.expires_in = new Date(new Date().getTime() + 10 * 60000);
 
-		this.twilioClient.verify.v2
-			.services(this.configService.get(Configs.TWILIO_VERIFICATION_SERVICE_SID))
-			.verifications.create({ to: mobile_number, channel: "sms" })
-			.then(() => {
-				session.phone_number_verified = "NOT_VERIFIED";
-				session.status = "OTP_SENT";
-			})
-			.catch((err) => {
-				throw new UnprocessableEntityException(`Twilio exception: ${err}`);
-				// TODO Add logging
-			});
+		let twilioSent: VerificationInstance;
+		try {
+			twilioSent = await this.twilioClient.verify.v2
+				.services(
+					this.configService.get(Configs.TWILIO_VERIFICATION_SERVICE_SID),
+				)
+				.verifications.create({
+					to: mobile_number,
+					channel: this.configService.get(Configs.TWILIO_CHANNEL),
+				});
+		} catch (e) {
+			console.log(e);
+			throw new UnprocessableEntityException(`Error with twilio: ${e}`);
+		}
+
+		console.log(twilioSent);
 
 		const saved_session = await this.signupSessionRepository.save(session);
 

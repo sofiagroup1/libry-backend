@@ -6,6 +6,7 @@ import { TypeOrmModule } from "@nestjs/typeorm";
 import { AuthModule } from "./auth/auth.module";
 import { User } from "./auth/Entities/User.entity";
 import { SignUpAuthSession } from "./auth/Entities/signup_auth_session.entity";
+import { UserModule } from "./user/user.module";
 import * as Joi from "joi";
 
 @Module({
@@ -31,6 +32,7 @@ import * as Joi from "joi";
 				TWILIO_ACCOUNT_SID: Joi.string().required(),
 				TWILIO_AUTH_TOKEN: Joi.string().required(),
 				TWILIO_VERIFICATION_SERVICE_SID: Joi.string().required(),
+				TWILIO_CHANNEL: Joi.string().default("whatsapp"),
 			}),
 		}),
 		TypeOrmModule.forRoot({
@@ -45,6 +47,7 @@ import * as Joi from "joi";
 			autoLoadEntities: true,
 		}),
 		AuthModule,
+		UserModule,
 	],
 	controllers: [AppController],
 	providers: [AppService],
