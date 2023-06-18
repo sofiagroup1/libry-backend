@@ -24,4 +24,10 @@ export class UserDto {
 
 	@ApiProperty()
 	birth_date: Date;
+
+	@ApiProperty({ type: [UserDto], isArray: true })
+	followers?: UserDto[];
+
+	@ApiProperty({ type: [UserDto], isArray: true })
+	following?: UserDto[];
 }

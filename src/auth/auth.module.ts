@@ -24,5 +24,6 @@ import { ProfileController } from "./Controllers/profile.controller";
 		AuthService,
 	],
 	controllers: [AuthController, ProfileController],
+	exports: [UserService],
 })
 export class AuthModule {}
