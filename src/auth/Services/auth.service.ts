@@ -8,7 +8,6 @@ import { ConfigService } from "@nestjs/config";
 import { InjectRepository } from "@nestjs/typeorm";
 import { createHash, randomBytes } from "crypto";
 import { Configs } from "src/app.constants";
-import { ResponseBody } from "src/app.types";
 import * as Twilio from "twilio";
 import { FindOptionsWhere, Repository } from "typeorm";
 import { EmailValidateRequestDto } from "../Dto/EmailValidate.request.dto";
@@ -20,6 +19,9 @@ import { User } from "../Entities/User.entity";
 import { SignUpAuthSession } from "../Entities/signup_auth_session.entity";
 import { UserService } from "./User.service";
 import { AwsCognitoService } from "./aws-cognito.service";
+import { ResponseDto } from "src/Dtos/Response.dto";
+import { UserDto } from "../Dto/User.dto";
+import { VerificationInstance } from "twilio/lib/rest/verify/v2/service/verification";
 
 @Injectable()
 export class AuthService {
@@ -38,7 +40,7 @@ export class AuthService {
 
 	async signupStepOne(
 		otpSendDto: OtpSendRequestDto,
-	): Promise<ResponseBody<{ token: string }>> {
+	): Promise<ResponseDto<{ token: string }>> {
 		const { device_id, mobile_number } = otpSendDto;
 
 		// Check if another session is active
@@ -75,17 +77,22 @@ export class AuthService {
 		session.phone_number_verified = "NOT_VERIFIED";
 		session.expires_in = new Date(new Date().getTime() + 10 * 60000);
 
-		this.twilioClient.verify.v2
-			.services(this.configService.get(Configs.TWILIO_VERIFICATION_SERVICE_SID))
-			.verifications.create({ to: mobile_number, channel: "sms" })
-			.then(() => {
-				session.phone_number_verified = "NOT_VERIFIED";
-				session.status = "OTP_SENT";
-			})
-			.catch((err) => {
-				throw new UnprocessableEntityException(`Twilio exception: ${err}`);
-				// TODO Add logging
-			});
+		let twilioSent: VerificationInstance;
+		try {
+			twilioSent = await this.twilioClient.verify.v2
+				.services(
+					this.configService.get(Configs.TWILIO_VERIFICATION_SERVICE_SID),
+				)
+				.verifications.create({
+					to: mobile_number,
+					channel: this.configService.get(Configs.TWILIO_CHANNEL),
+				});
+		} catch (e) {
+			console.log(e);
+			throw new UnprocessableEntityException(`Error with twilio: ${e}`);
+		}
+
+		console.log(twilioSent);
 
 		const saved_session = await this.signupSessionRepository.save(session);
 
@@ -97,7 +104,7 @@ export class AuthService {
 
 	async signupStepTwo(
 		otpVerifyDto: OtpVerifyRequestDto,
-	): Promise<ResponseBody<{ token: string }>> {
+	): Promise<ResponseDto<{ token: string }>> {
 		const { device_id, otp_code, token } = otpVerifyDto;
 
 		// Find session
@@ -154,7 +161,7 @@ export class AuthService {
 
 	async signupStepThree(
 		emailValidateDto: EmailValidateRequestDto,
-	): Promise<ResponseBody<{ token: string }>> {
+	): Promise<ResponseDto<{ token: string }>> {
 		const { device_id, email, token } = emailValidateDto;
 		// Find session
 		const session = await this.signupSessionRepository.findOne({
@@ -198,7 +205,7 @@ export class AuthService {
 
 	async signupStepFinal(
 		signupDto: SignUpRequestDto,
-	): Promise<ResponseBody<{ user: User; tokens: any }>> {
+	): Promise<ResponseDto<{ user: UserDto; tokens: any }>> {
 		const { password, token, device_id } = signupDto;
 
 		// Find session
@@ -251,7 +258,7 @@ export class AuthService {
 		};
 	}
 
-	async loginUser(loginRequest: LoginRequestDto): Promise<ResponseBody<any>> {
+	async loginUser(loginRequest: LoginRequestDto): Promise<ResponseDto<any>> {
 		const { email, password, phone_number } = loginRequest;
 
 		// Find user details from email or phone number
@@ -285,7 +292,7 @@ export class AuthService {
 		email,
 	}: {
 		email: string;
-	}): Promise<ResponseBody<any>> {
+	}): Promise<ResponseDto<any>> {
 		const user = await this.userService.findUser({ where: { email } });
 
 		if (!user) {

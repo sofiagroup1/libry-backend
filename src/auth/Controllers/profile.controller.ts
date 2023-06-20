@@ -3,10 +3,12 @@ import { ApiTags } from "@nestjs/swagger";
 import { UserService } from "../Services/User.service";
 import { AuthGuard } from "@nestjs/passport";
 import { Request } from "express";
-import { ReqUser, ResponseBody } from "src/app.types";
+import { ReqUser } from "src/app.types";
 import { UserDto } from "../Dto/User.dto";
 import { OnboardingUserDetailsRequestDto } from "../Dto/onboarding.request.dto";
 import { User } from "../Entities/User.entity";
+import { ApiOkResponseBody } from "src/Decorators/ApiResponseBody.decorator";
+import { ResponseDto } from "src/Dtos/Response.dto";
 
 @Controller("profile")
 @ApiTags("Profile")
@@ -15,7 +17,8 @@ export class ProfileController {
 	constructor(private userService: UserService) {}
 
 	@Get()
-	async getLoggedUser(@Req() request: Request): Promise<ResponseBody<UserDto>> {
+	@ApiOkResponseBody({ description: "Logged in user", type: UserDto })
+	async getLoggedUser(@Req() request: Request): Promise<ResponseDto<UserDto>> {
 		const loggedInUser = request.user as ReqUser;
 
 		return {
@@ -25,6 +28,7 @@ export class ProfileController {
 	}
 
 	@Post("onboarding")
+	@ApiOkResponseBody({ description: "Updated user details", type: UserDto })
 	async onboardingAddDetails(
 		@Req() request: Request,
 		@Body() reqBody: OnboardingUserDetailsRequestDto,

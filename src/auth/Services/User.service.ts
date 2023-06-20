@@ -1,8 +1,9 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, UnprocessableEntityException } from "@nestjs/common";
 import { FindOneOptions, FindOptionsWhere, Repository } from "typeorm";
 import { User } from "../Entities/User.entity";
 import { InjectRepository } from "@nestjs/typeorm";
 import { UserDto } from "../Dto/User.dto";
+import { SearchUserQuery } from "src/user/Dto/SearchUserQuery.dto";
 
 @Injectable()
 export class UserService {
@@ -21,6 +22,8 @@ export class UserService {
 			userConfirmed: data.userConfirmed,
 			email_verified: data.email_verified,
 			phone_number_verified: data.phone_number_verified,
+			followers: data.followers?.map((user) => this.toUserDto(user)) || [],
+			following: data.following?.map((user) => this.toUserDto(user)) || [],
 		};
 
 		return dto;
@@ -62,5 +65,83 @@ export class UserService {
 		}
 
 		return await this.userRepository.save(user);
+	}
+
+	async searchUsers(searchUserQuery: SearchUserQuery) {
+		const { name, email, phone_number } = searchUserQuery;
+
+		const where: FindOptionsWhere<User> = {};
+
+		if (name) {
+			where.name = name;
+		}
+		if (email) {
+			where.email = email;
+		}
+		if (phone_number) {
+			where.phone_number = phone_number;
+		}
+
+		const users = await this.userRepository.find({ where });
+
+		return users.map((user) => this.toUserDto(user));
+	}
+
+	async followUser(userId: string, followerId: string) {
+		let user = await this.userRepository.findOne({
+			where: { id: userId },
+			relations: ["followers"],
+		});
+		const follower = await this.userRepository.findOne({
+			where: { id: followerId },
+			relations: ["following"],
+		});
+
+		if (user.followers.find((user) => user.id === follower.id)) {
+			throw new UnprocessableEntityException("USER_ALREADY_FOLLOWED");
+		}
+
+		user.followers.push(follower);
+		user = await this.userRepository.save(user);
+
+		return this.toUserDto(user);
+	}
+
+	async unfollowUser(userId: string, followerId: string) {
+		let user = await this.userRepository.findOne({
+			where: { id: userId },
+			relations: ["followers"],
+		});
+		const follower = await this.userRepository.findOne({
+			where: { id: followerId },
+			relations: ["following"],
+		});
+
+		if (user.followers.find((user) => user.id !== follower.id)) {
+			throw new UnprocessableEntityException("USER_NOT_FOLLOWED");
+		}
+
+		user.followers = user.followers.filter((user) => user.id !== follower.id);
+		user = await this.userRepository.save(user);
+
+		return this.toUserDto(user);
+	}
+
+	async getFollowers(userId: string) {
+		const user = await this.userRepository.findOne({
+			where: { id: userId },
+			relations: ["followers"],
+		});
+
+		return user.followers.map((user) => this.toUserDto(user));
+	}
+
+	async getFollowing(userId: string) {
+		const user = await this.userRepository.findOne({
+			where: { id: userId },
+			relations: ["following"],
+		});
+
+		return user.following.map((user) => this.toUserDto(user));
 	}
 }
