@@ -4,6 +4,7 @@ import { User } from "../Entities/User.entity";
 import { InjectRepository } from "@nestjs/typeorm";
 import { UserDto } from "../Dto/User.dto";
 import { SearchUserQuery } from "src/user/Dto/SearchUserQuery.dto";
+import { DeleteUserRequestDTO } from "../Dto/DeleteUser.request.dto";
 
 @Injectable()
 export class UserService {
@@ -143,5 +144,11 @@ export class UserService {
 		});
 
 		return user.following.map((user) => this.toUserDto(user));
+	}
+	async deleteUser(deleteUserRequestDto: DeleteUserRequestDTO) {
+		const user = await this.userRepository.delete({
+			phone_number: deleteUserRequestDto.phone_number,
+		});
+		return user;
 	}
 }

@@ -22,6 +22,7 @@ import { AwsCognitoService } from "./aws-cognito.service";
 import { ResponseDto } from "src/Dtos/Response.dto";
 import { UserDto } from "../Dto/User.dto";
 import { VerificationInstance } from "twilio/lib/rest/verify/v2/service/verification";
+import { DeleteUserRequestDTO } from "../Dto/DeleteUser.request.dto";
 
 @Injectable()
 export class AuthService {
@@ -341,5 +342,11 @@ export class AuthService {
 		return createHash("sha256")
 			.update(seed + payload)
 			.digest("hex");
+	}
+	async deleteUser(deleteUserRequestDto: DeleteUserRequestDTO) {
+		const user = await this.awsCognitoService.adminDeleteUser(
+			deleteUserRequestDto,
+		);
+		return user;
 	}
 }

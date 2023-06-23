@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Post } from "@nestjs/common";
 import {
 	ApiForbiddenResponse,
 	ApiInternalServerErrorResponse,
@@ -16,6 +16,7 @@ import { SignUpRequestDto } from "../Dto/Signup.request.dto";
 import { SignupResponseDto } from "../Dto/Signup.response.dto";
 import { SessionTokenResponse } from "../Dto/Token.response.dto";
 import { AuthService } from "../Services/auth.service";
+import { DeleteUserRequestDTO } from "../Dto/DeleteUser.request.dto";
 
 @Controller("auth")
 @ApiTags("Authentication")
@@ -116,5 +117,10 @@ export class AuthController {
 
 	async resetPassword(@Body() resetDto: PasswordResetDto) {
 		return await this.authService.sendResetPassword({ email: resetDto.email });
+	}
+
+	@Delete("")
+	async deleteUser(@Body() deleteUserRequestDto: DeleteUserRequestDTO) {
+		return await this.authService.deleteUser(deleteUserRequestDto);
 	}
 }

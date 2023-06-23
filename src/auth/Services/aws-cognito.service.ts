@@ -2,6 +2,7 @@ import {
 	AdminConfirmSignUpCommand,
 	AdminUpdateUserAttributesCommand,
 	CognitoIdentityProviderClient,
+	AdminDeleteUserCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
 import { Injectable } from "@nestjs/common";
 import {
@@ -13,6 +14,8 @@ import {
 import { User } from "../Entities/User.entity";
 import { AWSCognitoConfig } from "../aws-cognito.config";
 import { UserService } from "./User.service";
+import { DeleteResult } from "typeorm";
+import { DeleteUserRequestDTO } from "../Dto/DeleteUser.request.dto";
 
 @Injectable()
 export class AwsCognitoService {
@@ -198,6 +201,24 @@ export class AwsCognitoService {
 				onFailure: (err) => {
 					reject(err);
 				},
+			});
+		});
+	}
+	async adminDeleteUser(data: DeleteUserRequestDTO): Promise<DeleteResult> {
+		const { phone_number } = data;
+
+		const command = new AdminDeleteUserCommand({
+			UserPoolId: this.awsCognitoConfig.userPoolID,
+			Username: phone_number,
+		});
+
+		return new Promise((resolve, reject) => {
+			this.awsClient.send(command).then(async (value) => {
+				console.log(value);
+
+				const user = await this.userService.deleteUser(data);
+
+				resolve(user);
 			});
 		});
 	}
