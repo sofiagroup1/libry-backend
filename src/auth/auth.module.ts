@@ -10,6 +10,7 @@ import { User } from "./Entities/User.entity";
 import { SignUpAuthSession } from "./Entities/signup_auth_session.entity";
 import { AuthService } from "./Services/auth.service";
 import { ProfileController } from "./Controllers/profile.controller";
+import { VerifyService } from "./Services/verify.service";
 
 @Module({
 	imports: [
@@ -22,6 +23,7 @@ import { ProfileController } from "./Controllers/profile.controller";
 		JwtStrategy,
 		UserService,
 		AuthService,
+		VerifyService,
 	],
 	controllers: [AuthController, ProfileController],
 	exports: [UserService],

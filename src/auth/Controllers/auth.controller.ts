@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Post, Query } from "@nestjs/common";
 import {
 	ApiForbiddenResponse,
 	ApiInternalServerErrorResponse,
@@ -17,6 +17,7 @@ import { SignupResponseDto } from "../Dto/Signup.response.dto";
 import { SessionTokenResponse } from "../Dto/Token.response.dto";
 import { AuthService } from "../Services/auth.service";
 import { DeleteUserRequestDTO } from "../Dto/DeleteUser.request.dto";
+import { NewPasswordRequestDto } from "../Dto/NewPassword.request.dto";
 
 @Controller("auth")
 @ApiTags("Authentication")
@@ -115,12 +116,30 @@ export class AuthController {
 		return await this.authService.loginUser(loginDto);
 	}
 
+	@Post("reset-password")
 	async resetPassword(@Body() resetDto: PasswordResetDto) {
 		return await this.authService.sendResetPassword({ email: resetDto.email });
+	}
+
+	@Post("new-password")
+	async newPassword(@Body() newPasswordDto: NewPasswordRequestDto) {
+		return await this.authService.confirmPassword({
+			code: newPasswordDto.code,
+			id: newPasswordDto.userId,
+			new_password: newPasswordDto.password,
+		});
 	}
 
 	@Delete("")
 	async deleteUser(@Body() deleteUserRequestDto: DeleteUserRequestDTO) {
 		return await this.authService.deleteUser(deleteUserRequestDto);
+	}
+
+	@Get("verify/email")
+	async validateEmail(
+		@Query("email") email: string,
+		@Query("token") token: string,
+	) {
+		return await this.authService.validateEmail(email, token);
 	}
 }

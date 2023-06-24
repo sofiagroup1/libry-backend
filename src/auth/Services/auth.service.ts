@@ -21,8 +21,8 @@ import { UserService } from "./User.service";
 import { AwsCognitoService } from "./aws-cognito.service";
 import { ResponseDto } from "src/Dtos/Response.dto";
 import { UserDto } from "../Dto/User.dto";
-import { VerificationInstance } from "twilio/lib/rest/verify/v2/service/verification";
 import { DeleteUserRequestDTO } from "../Dto/DeleteUser.request.dto";
+import { VerifyService } from "./verify.service";
 
 @Injectable()
 export class AuthService {
@@ -32,6 +32,7 @@ export class AuthService {
 		private userService: UserService,
 		private readonly configService: ConfigService,
 		private awsCognitoService: AwsCognitoService,
+		private verifyService: VerifyService,
 	) {}
 
 	private twilioClient = Twilio(
@@ -73,27 +74,13 @@ export class AuthService {
 		session.token = token;
 		session.device_id = device_id;
 		session.phone_number = mobile_number;
-		session.is_phone_number_taken = userFound !== null;
+		// session.is_phone_number_taken = userFound !== null;
+		session.is_phone_number_taken = false;
 		session.otp_try_count = 0;
 		session.phone_number_verified = "NOT_VERIFIED";
 		session.expires_in = new Date(new Date().getTime() + 10 * 60000);
 
-		let twilioSent: VerificationInstance;
-		try {
-			twilioSent = await this.twilioClient.verify.v2
-				.services(
-					this.configService.get(Configs.TWILIO_VERIFICATION_SERVICE_SID),
-				)
-				.verifications.create({
-					to: mobile_number,
-					channel: this.configService.get(Configs.TWILIO_CHANNEL),
-				});
-		} catch (e) {
-			console.log(e);
-			throw new UnprocessableEntityException(`Error with twilio: ${e}`);
-		}
-
-		console.log(twilioSent);
+		await this.verifyService.sendVerificationCode(session.phone_number);
 
 		const saved_session = await this.signupSessionRepository.save(session);
 
@@ -125,13 +112,14 @@ export class AuthService {
 			throw new ForbiddenException("Phone number taken");
 		}
 
-		const otpStatus = await this.twilioClient.verify.v2
-			.services(this.configService.get(Configs.TWILIO_VERIFICATION_SERVICE_SID))
-			.verificationChecks.create({ to: session.phone_number, code: otp_code });
+		const otpStatus = await this.verifyService.verifyCode(
+			session.phone_number,
+			otp_code,
+		);
 
 		session.otp_try_count = session.otp_try_count + 1;
 
-		if (otpStatus.status === "approved") {
+		if (otpStatus) {
 			const new_token = this._generateToken(session.device_id);
 			session.token = new_token;
 			session.phone_number_verified = "VERIFIED";
@@ -183,11 +171,8 @@ export class AuthService {
 
 		if (userFound !== null) {
 			// If existing user, ends signup flow
-			this.signupSessionRepository.delete({ id: session.id });
 			throw new ForbiddenException("Email taken");
 		}
-
-		// TODO send email verify link
 
 		const new_token = this._generateToken(session.device_id);
 
@@ -244,6 +229,8 @@ export class AuthService {
 				attribute: "phone_number_verified",
 			});
 		}
+
+		await this.verifyService.sendVerificationLink(session.email);
 
 		// Remove session
 		await this.signupSessionRepository.delete({ id: session.id });
@@ -309,14 +296,14 @@ export class AuthService {
 
 	async confirmPassword({
 		code,
-		email,
+		id,
 		new_password,
 	}: {
-		email: string;
+		id: string;
 		new_password: string;
 		code: string;
 	}) {
-		const user = await this.userService.findUser({ where: { email } });
+		const user = await this.userService.findUser({ where: { id } });
 
 		if (!user) {
 			throw new NotFoundException("User not found");
@@ -335,6 +322,33 @@ export class AuthService {
 		return await this.userService.findUser({
 			where: { cognitoSub: cognitoSub },
 		});
+	}
+
+	async validateEmail(email: string, token: string) {
+		const user = await this.userService.findUser({
+			where: { email: email, email_verified: false },
+		});
+
+		const otpStatus = this.verifyService.verifyLink(email, token);
+
+		if (otpStatus) {
+			await this.awsCognitoService.adminVerifyAttribute({
+				username: user.cognitoSub,
+				userId: user.id,
+				attribute: "email_verified",
+			});
+
+			// TODO Redirect to web page
+			// SUCCESS
+			return {
+				message: "EMAIL VERIFIED",
+			};
+		} else {
+			// TODO Redirect to web page
+			return {
+				message: "INVALID EMAIL VERIFICATION LINK",
+			};
+		}
 	}
 
 	private _generateToken(payload: string) {
