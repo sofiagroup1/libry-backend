@@ -15,6 +15,7 @@ import * as Joi from "joi";
 			envFilePath: [".env", `.env.${process.env.NODE_ENV}`],
 			isGlobal: true,
 			validationSchema: Joi.object({
+				DEV: Joi.boolean().default(true),
 				// DB
 				DB_HOST: Joi.string().required(),
 				DB_PORT: Joi.string().required(),

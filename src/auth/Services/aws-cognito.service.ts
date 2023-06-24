@@ -120,17 +120,20 @@ export class AwsCognitoService {
 		});
 
 		return new Promise((resolve, reject) => {
-			this.awsClient.send(command).then(async (value) => {
-				console.log(value);
+			this.awsClient
+				.send(command)
+				.then(async (value) => {
+					console.log(value);
 
-				const user = await this.userService.markVerifiedStatus(
-					userId,
-					attribute,
-					true,
-				);
+					const user = await this.userService.markVerifiedStatus(
+						userId,
+						attribute,
+						true,
+					);
 
-				resolve(user);
-			});
+					resolve(user);
+				})
+				.catch((err) => reject(err));
 		});
 	}
 
