@@ -4,9 +4,10 @@ import {
 	CognitoIdentityProviderClient,
 	AdminDeleteUserCommand,
 } from "@aws-sdk/client-cognito-identity-provider";
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import {
 	AuthenticationDetails,
+	CognitoRefreshToken,
 	CognitoUser,
 	CognitoUserAttribute,
 	CognitoUserPool,
@@ -16,11 +17,14 @@ import { AWSCognitoConfig } from "../aws-cognito.config";
 import { UserService } from "./User.service";
 import { DeleteResult } from "typeorm";
 import { DeleteUserRequestDTO } from "../Dto/DeleteUser.request.dto";
+import jwt_decode from "jwt-decode";
 
 @Injectable()
 export class AwsCognitoService {
 	private userPool: CognitoUserPool;
 	private awsClient: CognitoIdentityProviderClient;
+
+	private readonly logger = new Logger(AwsCognitoService.name);
 
 	constructor(
 		private awsCognitoConfig: AWSCognitoConfig,
@@ -61,6 +65,7 @@ export class AwsCognitoService {
 				null,
 				async (err, result) => {
 					if (!result) {
+						this.logger.error(`RegisterUser: ${err}`);
 						reject(err);
 					} else {
 						let user: User = new User();
@@ -72,8 +77,7 @@ export class AwsCognitoService {
 							userConfirmed: result.userConfirmed,
 						};
 
-						console.log(result);
-
+						this.logger.debug(`RegisterUser: COGNITO RESULT: ${result}`);
 						resolve(await this.userService.create(user));
 					}
 				},
@@ -93,16 +97,21 @@ export class AwsCognitoService {
 		});
 
 		return new Promise((resolve, reject) => {
-			this.awsClient.send(adminConfirmSignUpCommand).then(async (value) => {
-				console.log(value);
+			this.awsClient
+				.send(adminConfirmSignUpCommand)
+				.then(async (value) => {
+					const user = await this.userService.markUserConfirmedStatus(
+						userId,
+						true,
+					);
 
-				const user = await this.userService.markUserConfirmedStatus(
-					userId,
-					true,
-				);
-
-				resolve(user);
-			});
+					this.logger.debug(`AdminConfirmAccount: COGNITO RESULT ${value}`);
+					resolve(user);
+				})
+				.catch((err) => {
+					this.logger.error(`AdminConfirmAccount: ${err}`);
+					reject(err);
+				});
 		});
 	}
 
@@ -123,17 +132,18 @@ export class AwsCognitoService {
 			this.awsClient
 				.send(command)
 				.then(async (value) => {
-					console.log(value);
-
 					const user = await this.userService.markVerifiedStatus(
 						userId,
 						attribute,
 						true,
 					);
-
+					this.logger.debug(`AdminVerifyAttribute: COGNITO RESULT ${value}`);
 					resolve(user);
 				})
-				.catch((err) => reject(err));
+				.catch((err) => {
+					this.logger.error(`AdminVerifyAttribute: ${err}`);
+					reject(err);
+				});
 		});
 	}
 
@@ -152,12 +162,14 @@ export class AwsCognitoService {
 		return new Promise((resolve, reject) => {
 			userCognito.authenticateUser(authenticatedDetails, {
 				onSuccess: (result) => {
+					this.logger.debug(`LoginUser: COGNITO RESULT ${result}`);
 					resolve({
 						accessToken: result.getAccessToken().getJwtToken(),
 						refreshToken: result.getRefreshToken().getToken(),
 					});
 				},
 				onFailure: (err) => {
+					this.logger.error(`LoginUser: ${err}`);
 					reject(err);
 				},
 			});
@@ -172,10 +184,11 @@ export class AwsCognitoService {
 		return new Promise((resolve, reject) => {
 			userCognito.forgotPassword({
 				onSuccess: (data) => {
-					console.log("Forgot pw data : ", data);
+					this.logger.debug(`ForgetPasswordSendOtp: COGNITO RESULT ${data}`);
 					resolve(data);
 				},
 				onFailure: (err) => {
+					this.logger.error(`ForgetPasswordSendOtp: ${err}`);
 					reject(err);
 				},
 			});
@@ -198,15 +211,17 @@ export class AwsCognitoService {
 		return new Promise((resolve, reject) => {
 			userCognito.confirmPassword(code, new_password, {
 				onSuccess: (data) => {
-					console.log("Forgot pw data : ", data);
+					this.logger.debug(`ConfirmPassword: COGNITO RESULT ${data}`);
 					resolve(data);
 				},
 				onFailure: (err) => {
+					this.logger.error(`ConfirmPassword: ${err}`);
 					reject(err);
 				},
 			});
 		});
 	}
+
 	async adminDeleteUser(data: DeleteUserRequestDTO): Promise<DeleteResult> {
 		const { phone_number } = data;
 
@@ -216,12 +231,42 @@ export class AwsCognitoService {
 		});
 
 		return new Promise((resolve, reject) => {
-			this.awsClient.send(command).then(async (value) => {
-				console.log(value);
+			this.awsClient
+				.send(command)
+				.then(async (value) => {
+					const user = await this.userService.deleteUser(data);
+					this.logger.debug(`AdminDeleteUser: COGNITO RESULT ${value}`);
+					resolve(user);
+				})
+				.catch((error) => {
+					this.logger.error(`AdminDeleteUser: ${error}`);
+					reject(error);
+				});
+		});
+	}
 
-				const user = await this.userService.deleteUser(data);
+	async refreshTokens(data: { refreshToken: string; accessToken: string }) {
+		const decoded = jwt_decode(data.accessToken) as { sub: string };
+		const sub = decoded.sub;
+		const refreshToken = new CognitoRefreshToken({
+			RefreshToken: data.refreshToken,
+		});
 
-				resolve(user);
+		const userData = { Username: sub, Pool: this.userPool };
+
+		const userCognito = new CognitoUser(userData);
+
+		return new Promise((resolve, reject) => {
+			userCognito.refreshSession(refreshToken, (err, session) => {
+				if (err) {
+					this.logger.error(`RefreshTokens: ${err}`);
+					reject(err);
+				} else {
+					this.logger.debug(`RefreshTokens: COGNITO RESULT ${session}`);
+					resolve({
+						accessToken: session.getAccessToken().getJwtToken(),
+					});
+				}
 			});
 		});
 	}

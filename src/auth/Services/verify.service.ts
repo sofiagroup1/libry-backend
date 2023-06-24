@@ -1,4 +1,8 @@
-import { Injectable, UnprocessableEntityException } from "@nestjs/common";
+import {
+	Injectable,
+	Logger,
+	UnprocessableEntityException,
+} from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Configs } from "src/app.constants";
 import * as Twilio from "twilio";
@@ -11,12 +15,14 @@ export class VerifyService {
 		this.configService.get(Configs.TWILIO_ACCOUNT_SID),
 		this.configService.get(Configs.TWILIO_AUTH_TOKEN),
 	);
-
-	private isDevelopment = this.configService.get(Configs.DEV);
+	private readonly logger = new Logger(VerifyService.name);
+	private readonly isDevelopment = this.configService.get(Configs.DEV);
 
 	async sendVerificationCode(phone_number: string) {
 		if (this.isDevelopment) {
-			console.info(`DEVELOPMENT MODE: Verification code: 12345`);
+			this.logger.log(
+				`DEVELOPMENT MODE: SendVerificationCode: Verification code: 12345`,
+			);
 			return true;
 		} else {
 			try {
@@ -28,9 +34,10 @@ export class VerifyService {
 						to: phone_number,
 						channel: this.configService.get(Configs.TWILIO_CHANNEL),
 					});
-				console.log(verification);
+				this.logger.log(`SendVerificationCode: SUCCESS: ${verification}`);
 				return true;
 			} catch (error) {
+				this.logger.error(`SendVerificationCode: ERROR: ${error}`);
 				throw new UnprocessableEntityException(`Error with twilio: ${error}`);
 			}
 		}
@@ -38,6 +45,7 @@ export class VerifyService {
 
 	async verifyCode(phone_number: string, code: string) {
 		if (this.isDevelopment) {
+			this.logger.log(`DEVELOPMENT MODE: VerifyCode`);
 			return code === "12345";
 		} else {
 			try {
@@ -49,9 +57,10 @@ export class VerifyService {
 						to: phone_number,
 						code: code,
 					});
-				console.log(verification);
+				this.logger.log(`VerifyCode: SUCCESS: ${verification}`);
 				return verification.status === "approved";
 			} catch (error) {
+				this.logger.error(`VerifyCode: ERROR: ${error}`);
 				throw new UnprocessableEntityException(`Error with twilio: ${error}`);
 			}
 		}
@@ -59,8 +68,8 @@ export class VerifyService {
 
 	async sendVerificationLink(email: string) {
 		if (this.isDevelopment) {
-			console.info(
-				`DEVELOPMENT MODE: Verification link: http://localhost:3000/verify/email?email=${email}&token=12345`,
+			this.logger.log(
+				`DEVELOPMENT MODE: SendVerificationLink: Verification link: http://localhost:3000/verify/email?email=${email}&token=12345`,
 			);
 			return true;
 		} else {
@@ -73,9 +82,12 @@ export class VerifyService {
 						to: email,
 						channel: "email",
 					});
-				console.log(verification);
+				this.logger.log(
+					`SendVerificationLink: Email: ${email}, SUCCESS: ${verification}`,
+				);
 				return true;
 			} catch (error) {
+				this.logger.error(`SendVerificationLink: ERROR: ${error}`);
 				throw new UnprocessableEntityException(`Error with twilio: ${error}`);
 			}
 		}
@@ -83,6 +95,7 @@ export class VerifyService {
 
 	async verifyLink(email: string, code: string) {
 		if (this.isDevelopment) {
+			this.logger.log(`DEVELOPMENT MODE: VerifyLink`);
 			return code === "12345";
 		} else {
 			try {
@@ -91,8 +104,10 @@ export class VerifyService {
 						this.configService.get(Configs.TWILIO_VERIFICATION_SERVICE_SID),
 					)
 					.verificationChecks.create({ to: email, code: code });
+				this.logger.log(`VerifyLink: SUCCESS: ${verification}`);
 				return verification.status === "approved";
 			} catch (error) {
+				this.logger.error(`VerifyLink: ERROR: ${error}`);
 				throw new UnprocessableEntityException(`Error with twilio: ${error}`);
 			}
 		}

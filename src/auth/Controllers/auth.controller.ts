@@ -1,4 +1,12 @@
-import { Body, Controller, Delete, Get, Post, Query } from "@nestjs/common";
+import {
+	Body,
+	Controller,
+	Delete,
+	Get,
+	Logger,
+	Post,
+	Query,
+} from "@nestjs/common";
 import {
 	ApiForbiddenResponse,
 	ApiInternalServerErrorResponse,
@@ -18,6 +26,8 @@ import { SessionTokenResponse } from "../Dto/Token.response.dto";
 import { AuthService } from "../Services/auth.service";
 import { DeleteUserRequestDTO } from "../Dto/DeleteUser.request.dto";
 import { NewPasswordRequestDto } from "../Dto/NewPassword.request.dto";
+import { RefreshTokensRequestDto } from "../Dto/RefreshTokens.request.dto";
+import { DeleteResult } from "typeorm";
 
 @Controller("auth")
 @ApiTags("Authentication")
@@ -116,30 +126,53 @@ export class AuthController {
 		return await this.authService.loginUser(loginDto);
 	}
 
+	@ApiOkResponseBody({
+		description: "Send reset password code",
+		type: String,
+	})
 	@Post("reset-password")
 	async resetPassword(@Body() resetDto: PasswordResetDto) {
 		return await this.authService.sendResetPassword({ email: resetDto.email });
 	}
 
+	@ApiOkResponseBody({
+		description: "Create new password with password reset code",
+		type: String,
+	})
 	@Post("new-password")
 	async newPassword(@Body() newPasswordDto: NewPasswordRequestDto) {
 		return await this.authService.confirmPassword({
 			code: newPasswordDto.code,
-			id: newPasswordDto.userId,
+			email: newPasswordDto.email,
 			new_password: newPasswordDto.password,
 		});
 	}
 
 	@Delete("")
+	@ApiOkResponseBody({
+		description: "Delete user : DEVELOPMENT ONLY!",
+		type: DeleteResult,
+	})
 	async deleteUser(@Body() deleteUserRequestDto: DeleteUserRequestDTO) {
 		return await this.authService.deleteUser(deleteUserRequestDto);
 	}
 
 	@Get("verify/email")
+	@ApiOkResponse({
+		description: "Verify email",
+	})
 	async validateEmail(
 		@Query("email") email: string,
 		@Query("token") token: string,
 	) {
 		return await this.authService.validateEmail(email, token);
+	}
+
+	@Post("refresh")
+	@ApiOkResponse({
+		description: "Refresh access token with refresh token",
+	})
+	async refreshTokens(@Body() data: RefreshTokensRequestDto) {
+		return await this.authService.refreshTokens(data);
 	}
 }

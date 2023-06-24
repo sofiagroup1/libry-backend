@@ -1,5 +1,5 @@
 import { ApiProperty } from "@nestjs/swagger";
-import { IsUUID, Matches } from "class-validator";
+import { IsEmail, Matches } from "class-validator";
 
 export class NewPasswordRequestDto {
 	@ApiProperty()
@@ -10,8 +10,8 @@ export class NewPasswordRequestDto {
 	password: string;
 
 	@ApiProperty()
-	@IsUUID()
-	userId: string;
+	@IsEmail()
+	email: string;
 
 	@ApiProperty()
 	code: string;
