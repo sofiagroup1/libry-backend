@@ -31,10 +31,30 @@ export class UserController {
 	})
 	async getUsers(
 		@Query() searchUserQuery: SearchUserQuery,
+		@Req() request: Request,
 	): Promise<ResponseDto<UserDto[]>> {
-		const data = await this.userService.searchUsers(searchUserQuery);
+		const loggedInUser = request.user as ReqUser;
+		const data = await this.userService.searchUsers(
+			searchUserQuery,
+			loggedInUser,
+		);
 
 		return { data, message: "USERS_FOUND" };
+	}
+
+	@Get("popular")
+	@ApiOkResponseBody({
+		description: "Get popular users",
+		type: UserDto,
+		isArray: true,
+	})
+	async getPopularUsers(
+		@Req() request: Request,
+	): Promise<ResponseDto<UserDto[]>> {
+		const loggedInUser = request.user as ReqUser;
+
+		const data = await this.userService.getPopularUsers(loggedInUser);
+		return { data, message: "POPULAR_USERS_FOUND" };
 	}
 
 	@Get(":id")

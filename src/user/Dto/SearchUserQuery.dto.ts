@@ -9,4 +9,7 @@ export class SearchUserQuery {
 
 	@ApiProperty()
 	phone_number?: string;
+
+	@ApiProperty()
+	exclude_logged_user?: boolean = true;
 }

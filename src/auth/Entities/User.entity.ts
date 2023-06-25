@@ -15,6 +15,9 @@ export class User {
 	name: string;
 
 	@Column({ nullable: true })
+	description: string;
+
+	@Column({ nullable: true })
 	birth_date: Date;
 
 	@Column({ unique: true, nullable: false })
@@ -41,4 +44,13 @@ export class User {
 
 	@ManyToMany(() => User, (user) => user.followers)
 	following: User[];
+
+	@Column({ select: false, nullable: true, insert: false, update: false })
+	followingCount?: number;
+
+	@Column({ select: false, nullable: true, insert: false, update: false })
+	followerCount?: number;
+
+	@Column({ select: false, nullable: true, insert: false, update: false })
+	isFollowed?: boolean;
 }
