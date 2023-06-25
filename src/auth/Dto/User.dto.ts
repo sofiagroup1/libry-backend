@@ -8,6 +8,9 @@ export class UserDto {
 	name: string;
 
 	@ApiProperty()
+	description: string;
+
+	@ApiProperty()
 	email: string;
 
 	@ApiProperty()
@@ -30,4 +33,13 @@ export class UserDto {
 
 	@ApiProperty({ type: [UserDto], isArray: true })
 	following?: UserDto[];
+
+	@ApiProperty()
+	followingCount?: number;
+
+	@ApiProperty()
+	followerCount?: number;
+
+	@ApiProperty()
+	isFollowed?: boolean;
 }

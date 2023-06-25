@@ -5,6 +5,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { UserDto } from "../Dto/User.dto";
 import { SearchUserQuery } from "src/user/Dto/SearchUserQuery.dto";
 import { DeleteUserRequestDTO } from "../Dto/DeleteUser.request.dto";
+import { ReqUser } from "src/app.types";
 
 @Injectable()
 export class UserService {
@@ -18,6 +19,7 @@ export class UserService {
 			id: data.id,
 			email: data.email,
 			phone_number: data.phone_number,
+			description: data.description,
 			name: data.name,
 			birth_date: data.birth_date,
 			userConfirmed: data.userConfirmed,
@@ -25,6 +27,7 @@ export class UserService {
 			phone_number_verified: data.phone_number_verified,
 			followers: data.followers?.map((user) => this.toUserDto(user)) || [],
 			following: data.following?.map((user) => this.toUserDto(user)) || [],
+			isFollowed: data.isFollowed,
 		};
 
 		return dto;
@@ -68,22 +71,57 @@ export class UserService {
 		return await this.userRepository.save(user);
 	}
 
-	async searchUsers(searchUserQuery: SearchUserQuery) {
-		const { name, email, phone_number } = searchUserQuery;
+	async searchUsers(searchUserQuery: SearchUserQuery, loggedInUser: ReqUser) {
+		const { name, email, phone_number, exclude_logged_user } = searchUserQuery;
 
-		const where: FindOptionsWhere<User> = {};
+		const queryBuilder = this.userRepository.createQueryBuilder("user");
+
+		if (exclude_logged_user) {
+			queryBuilder.andWhere("user.id != :id", { id: loggedInUser.user.id }); // exclude logged in user
+		}
+
+		queryBuilder
+			.leftJoinAndSelect("user.followers", "followers")
+			.leftJoinAndSelect("user.following", "following");
+
+		queryBuilder
+			.leftJoinAndSelect(
+				"user.following",
+				"follower",
+				"follower.id = :loggedInUserId",
+				{ loggedInUserId: loggedInUser.user.id },
+			)
+			.loadRelationCountAndMap(
+				"user.isFollowed",
+				"user.following",
+				"follower",
+				(qb) =>
+					qb
+						.andWhere("follower.id = :loggedInUserId", {
+							loggedInUserId: loggedInUser.user.id,
+						})
+						.limit(1),
+			);
 
 		if (name) {
-			where.name = name;
+			queryBuilder.andWhere("user.name = :name", { name });
 		}
 		if (email) {
-			where.email = email;
+			queryBuilder.andWhere("user.email = :email", { email });
 		}
 		if (phone_number) {
-			where.phone_number = phone_number;
+			queryBuilder.andWhere("user.phone_number = :phone_number", {
+				phone_number,
+			});
 		}
 
-		const users = await this.userRepository.find({ where });
+		const users = await queryBuilder.getMany();
+
+		users.forEach((user) => {
+			user.isFollowed = !!user.isFollowed;
+		});
+
+		console.log(users);
 
 		return users.map((user) => this.toUserDto(user));
 	}
@@ -145,10 +183,53 @@ export class UserService {
 
 		return user.following.map((user) => this.toUserDto(user));
 	}
+
 	async deleteUser(deleteUserRequestDto: DeleteUserRequestDTO) {
 		const user = await this.userRepository.delete({
 			phone_number: deleteUserRequestDto.phone_number,
 		});
 		return user;
+	}
+
+	async getPopularUsers(loggedInUser: ReqUser) {
+		try {
+			const queryBuilder = this.userRepository
+				.createQueryBuilder("user")
+				.andWhere("user.id != :id", { id: loggedInUser.user.id }) // exclude logged in user
+				.leftJoinAndSelect("user.following", "following")
+				.loadRelationCountAndMap("user.followingCount", "user.following");
+
+			queryBuilder
+				.leftJoinAndSelect(
+					"user.following",
+					"follower",
+					"follower.id = :loggedInUserId",
+					{ loggedInUserId: loggedInUser.user.id },
+				)
+				.loadRelationCountAndMap(
+					"user.isFollowed",
+					"user.following",
+					"follower",
+					(qb) =>
+						qb
+							.andWhere("follower.id = :loggedInUserId", {
+								loggedInUserId: loggedInUser.user.id,
+							})
+							.limit(1),
+				);
+
+			let users = await queryBuilder.getMany();
+
+			// TODO figure out a way to do this in query builder
+			users.forEach((user) => {
+				user.isFollowed = !!user.isFollowed;
+			});
+			users = users.filter((user) => user.followingCount > 0);
+			users = users.sort((a, b) => b.followingCount - a.followingCount);
+
+			return users.map((user) => this.toUserDto(user));
+		} catch (error) {
+			console.log(error);
+		}
 	}
 }

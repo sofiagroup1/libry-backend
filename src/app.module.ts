@@ -46,6 +46,7 @@ import * as Joi from "joi";
 			synchronize: true,
 			entities: [User, SignUpAuthSession],
 			autoLoadEntities: true,
+			logging: process.env.DEV === "true" || false,
 		}),
 		AuthModule,
 		UserModule,
