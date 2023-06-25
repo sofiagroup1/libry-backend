@@ -1,11 +1,13 @@
 import {
 	Injectable,
+	InternalServerErrorException,
 	Logger,
 	UnprocessableEntityException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Configs } from "src/app.constants";
 import * as Twilio from "twilio";
+import { ErrorMessages } from "../Dto/enum/ErrorMessages";
 
 @Injectable()
 export class VerifyService {
@@ -38,7 +40,9 @@ export class VerifyService {
 				return true;
 			} catch (error) {
 				this.logger.error(`SendVerificationCode: ERROR: ${error}`);
-				throw new UnprocessableEntityException(`Error with twilio: ${error}`);
+				throw new InternalServerErrorException(
+					`${ErrorMessages.TWILIO_ERROR}: ${error}`,
+				);
 			}
 		}
 	}
@@ -61,7 +65,9 @@ export class VerifyService {
 				return verification.status === "approved";
 			} catch (error) {
 				this.logger.error(`VerifyCode: ERROR: ${error}`);
-				throw new UnprocessableEntityException(`Error with twilio: ${error}`);
+				throw new InternalServerErrorException(
+					`${ErrorMessages.TWILIO_ERROR}: ${error}`,
+				);
 			}
 		}
 	}
@@ -88,7 +94,9 @@ export class VerifyService {
 				return true;
 			} catch (error) {
 				this.logger.error(`SendVerificationLink: ERROR: ${error}`);
-				throw new UnprocessableEntityException(`Error with twilio: ${error}`);
+				throw new InternalServerErrorException(
+					`${ErrorMessages.TWILIO_ERROR}: ${error}`,
+				);
 			}
 		}
 	}
@@ -108,7 +116,9 @@ export class VerifyService {
 				return verification.status === "approved";
 			} catch (error) {
 				this.logger.error(`VerifyLink: ERROR: ${error}`);
-				throw new UnprocessableEntityException(`Error with twilio: ${error}`);
+				throw new InternalServerErrorException(
+					`${ErrorMessages.TWILIO_ERROR}: ${error}`,
+				);
 			}
 		}
 	}
