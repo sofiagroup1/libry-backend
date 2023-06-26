@@ -25,6 +25,9 @@ import { UserDto } from "../Dto/User.dto";
 import { DeleteUserRequestDTO } from "../Dto/DeleteUser.request.dto";
 import { VerifyService } from "./verify.service";
 import { RefreshTokensRequestDto } from "../Dto/RefreshTokens.request.dto";
+import { APIException } from "src/Exceptions/APIException";
+import { ErrorMessages } from "../Dto/enum/ErrorMessages";
+import { SUCCESS_MESSAGES } from "../Dto/enum/SuccessMessages";
 
 @Injectable()
 export class AuthService {
@@ -67,9 +70,7 @@ export class AuthService {
 				await this.signupSessionRepository.delete({
 					id: isSessionAvailable.id,
 				});
-				throw new UnprocessableEntityException(
-					"Previous Sign up is active, try again",
-				);
+				throw new UnprocessableEntityException(ErrorMessages.SESSION_ACTIVE);
 			}
 		}
 
@@ -94,7 +95,7 @@ export class AuthService {
 
 		const response = {
 			data: { token: saved_session.token },
-			message: "SENT OTP",
+			message: SUCCESS_MESSAGES.OTP_SENT,
 		};
 		this.logger.log(`SignupStepOne: SUCCESS: ${response}`);
 		return response;
@@ -113,17 +114,17 @@ export class AuthService {
 		// validate session
 		if (session === null) {
 			this.logger.error(`SignupStepTwo: Invalid session token`);
-			throw new UnprocessableEntityException("Invalid session");
+			throw new UnprocessableEntityException(ErrorMessages.INVALID_TOKEN);
 		}
 		if (session.device_id !== device_id) {
 			this.logger.error(`SignupStepTwo: Invalid device id: ${session}`);
 			await this.signupSessionRepository.delete({ id: session.id });
-			throw new UnprocessableEntityException("Invalid device id");
+			throw new UnprocessableEntityException(ErrorMessages.INVALID_DEVICE_ID);
 		}
 		if (session.is_phone_number_taken) {
 			this.logger.error(`SignupStepTwo: Phone number taken: ${session}`);
 			await this.signupSessionRepository.delete({ id: session.id });
-			throw new ForbiddenException("Phone number taken");
+			throw new APIException(ErrorMessages.PHONE_NUMBER_EXISTS);
 		}
 
 		const otpStatus = await this.verifyService.verifyCode(
@@ -147,7 +148,7 @@ export class AuthService {
 				data: {
 					token: new_session.token,
 				},
-				message: "OTP VERIFIED",
+				message: SUCCESS_MESSAGES.OTP_VERIFIED,
 			};
 		} else {
 			session.status = "OTP_FAILED";
@@ -156,12 +157,12 @@ export class AuthService {
 				// If otp code enters for maximum of 3 times end session
 				this.logger.error(`SignupStepTwo: OTP retry exceeds: ${session}`);
 				await this.signupSessionRepository.delete({ id: session.id });
-				throw new ForbiddenException("OTP retry exceeds");
+				throw new UnprocessableEntityException(ErrorMessages.OTP_RETRY_EXCEED);
 			}
 
 			this.logger.error(`SignupStepTwo: Invalid OTP: ${session}`);
 			await this.signupSessionRepository.save(session);
-			throw new UnprocessableEntityException("Invalid OTP");
+			throw new APIException(ErrorMessages.INVALID_OTP);
 		}
 	}
 
@@ -177,12 +178,12 @@ export class AuthService {
 		// Validate session
 		if (session === null) {
 			this.logger.error(`SignupStepThree: Invalid session token`);
-			throw new UnprocessableEntityException("Invalid token");
+			throw new UnprocessableEntityException(ErrorMessages.INVALID_TOKEN);
 		}
 		if (session.device_id !== device_id) {
 			this.logger.error(`SignupStepThree: Invalid device id: ${session}`);
 			await this.signupSessionRepository.delete({ id: session.id });
-			throw new UnprocessableEntityException("Invalid device id");
+			throw new UnprocessableEntityException(ErrorMessages.INVALID_DEVICE_ID);
 		}
 
 		const userFound = await this.userService.findUser({
@@ -192,7 +193,7 @@ export class AuthService {
 		if (userFound !== null) {
 			// existing user found
 			this.logger.error(`SignupStepThree: Email taken: ${session}`);
-			throw new ForbiddenException("Email taken");
+			throw new APIException(ErrorMessages.EMAIL_TAKEN);
 		}
 
 		const new_token = this._generateToken(session.device_id);
@@ -207,7 +208,7 @@ export class AuthService {
 		// SUCCESS
 		return {
 			data: { token: saved_session.token },
-			message: "EMAIL_ADDED",
+			message: SUCCESS_MESSAGES.EMAIL_ADDED,
 		};
 	}
 
@@ -224,17 +225,17 @@ export class AuthService {
 		// Validate session
 		if (session === null) {
 			this.logger.error(`SignupStepFinal: Invalid session token`);
-			throw new UnprocessableEntityException("Invalid token");
+			throw new UnprocessableEntityException(ErrorMessages.INVALID_TOKEN);
 		}
 		if (session.device_id !== device_id) {
 			this.logger.error(`SignupStepFinal: Invalid device id: ${session}`);
 			await this.signupSessionRepository.delete({ id: session.id });
-			throw new UnprocessableEntityException("Invalid device id");
+			throw new UnprocessableEntityException(ErrorMessages.INVALID_DEVICE_ID);
 		}
 		if (session.status !== "EMAIL_ADDED") {
 			this.logger.error(`SignupStepFinal: Invalid session status: ${session}`);
 			await this.signupSessionRepository.delete({ id: session.id });
-			throw new ForbiddenException("Not allowed");
+			throw new UnprocessableEntityException(ErrorMessages.NOT_ALLOWED);
 		}
 
 		let user = await this.awsCognitoService.registerUser({
@@ -280,7 +281,7 @@ export class AuthService {
 			`SignupStepFinal: User Tokens generated: UserId: ${user.id}`,
 		);
 		return {
-			message: "SUCCESS",
+			message: SUCCESS_MESSAGES.SIGNUP_SUCCESS,
 			data: { user: user, tokens },
 		};
 	}
@@ -305,7 +306,7 @@ export class AuthService {
 
 		if (userFound === null) {
 			this.logger.error(`LoginUser: User not found: ${loginRequest.email}`);
-			throw new UnprocessableEntityException("Username or password invalid");
+			throw new APIException(ErrorMessages.USER_NOT_FOUND);
 		}
 
 		const username = userFound.cognitoSub; // AWS Cognito username is users phone number
@@ -317,10 +318,10 @@ export class AuthService {
 				password,
 			});
 			this.logger.log(`LoginUser: User logged in: UserId: ${userFound.id}`);
-			return { data: tokens, message: "SUCCESS" };
+			return { data: tokens, message: SUCCESS_MESSAGES.LOGIN_SUCCESS };
 		} catch (error) {
 			this.logger.error(`LoginUser: COGNITO ERROR: ${error}`);
-			throw new UnprocessableEntityException("Username or password invalid");
+			throw new APIException(ErrorMessages.PASSWORD_INVALID);
 		}
 	}
 
@@ -332,13 +333,13 @@ export class AuthService {
 		const user = await this.userService.findUser({ where: { email } });
 
 		if (!user) {
-			throw new NotFoundException("User not found");
+			throw new APIException(ErrorMessages.USER_NOT_FOUND);
 		}
 		const data = await this.awsCognitoService.forgetPasswordSendOtp({
 			username: user.cognitoSub,
 		});
 
-		return { data: data, message: "RESET OTP SENT" };
+		return { data: data, message: SUCCESS_MESSAGES.OTP_SENT };
 	}
 
 	async confirmPassword({
@@ -353,7 +354,7 @@ export class AuthService {
 		const user = await this.userService.findUser({ where: { email } });
 
 		if (!user) {
-			throw new NotFoundException("User not found");
+			throw new APIException(ErrorMessages.USER_NOT_FOUND);
 		}
 		const data = await this.awsCognitoService.confirmPassword({
 			username: user.cognitoSub,
@@ -361,7 +362,7 @@ export class AuthService {
 			code,
 		});
 
-		return { data: data, message: "PASSWORD CHANGED" };
+		return { data: data, message: SUCCESS_MESSAGES.PASSWORD_CHANGED };
 	}
 
 	async validateUser(cognitoSub: string) {
@@ -387,12 +388,12 @@ export class AuthService {
 			// TODO Redirect to web page
 			// SUCCESS
 			return {
-				message: "EMAIL VERIFIED",
+				message: SUCCESS_MESSAGES.EMAIL_VERIFIED,
 			};
 		} else {
 			// TODO Redirect to web page
 			return {
-				message: "INVALID EMAIL VERIFICATION LINK",
+				message: ErrorMessages.INVALID_VERIFICATION_LINK,
 			};
 		}
 	}

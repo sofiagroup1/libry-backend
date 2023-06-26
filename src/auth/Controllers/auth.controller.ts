@@ -3,7 +3,7 @@ import {
 	Controller,
 	Delete,
 	Get,
-	Logger,
+	HttpStatus,
 	Post,
 	Query,
 } from "@nestjs/common";
@@ -14,20 +14,24 @@ import {
 	ApiTags,
 	ApiUnprocessableEntityResponse,
 } from "@nestjs/swagger";
-import { ApiOkResponseBody } from "src/Decorators/ApiResponseBody.decorator";
+import {
+	ApiExceptionResponse,
+	ApiOkResponseBody,
+} from "src/Decorators/ApiResponseBody.decorator";
+import { DeleteResult } from "typeorm";
+import { DeleteUserRequestDTO } from "../Dto/DeleteUser.request.dto";
 import { EmailValidateRequestDto } from "../Dto/EmailValidate.request.dto";
 import { LoginRequestDto } from "../Dto/Login.request.dto";
+import { NewPasswordRequestDto } from "../Dto/NewPassword.request.dto";
 import { OtpSendRequestDto } from "../Dto/OtpSend.request.dto";
 import { OtpVerifyRequestDto } from "../Dto/OtpVerify.request.dto";
 import { PasswordResetDto } from "../Dto/PasswordReset.request.dto";
+import { RefreshTokensRequestDto } from "../Dto/RefreshTokens.request.dto";
 import { SignUpRequestDto } from "../Dto/Signup.request.dto";
 import { SignupResponseDto } from "../Dto/Signup.response.dto";
 import { SessionTokenResponse } from "../Dto/Token.response.dto";
 import { AuthService } from "../Services/auth.service";
-import { DeleteUserRequestDTO } from "../Dto/DeleteUser.request.dto";
-import { NewPasswordRequestDto } from "../Dto/NewPassword.request.dto";
-import { RefreshTokensRequestDto } from "../Dto/RefreshTokens.request.dto";
-import { DeleteResult } from "typeorm";
+import { ErrorMessages } from "../Dto/enum/ErrorMessages";
 
 @Controller("auth")
 @ApiTags("Authentication")
@@ -41,10 +45,10 @@ export class AuthController {
 	})
 	@ApiUnprocessableEntityResponse({
 		status: 422,
-		description: "UnprocessableEntity: Previous Sign up is active, try again",
+		description: `UnprocessableEntity: ${[ErrorMessages.SESSION_ACTIVE]}`,
 	})
 	@ApiInternalServerErrorResponse({
-		description: "Error with twilio or unprocessed",
+		description: `InternalServerError: Error with twilio or unprocessed`,
 	})
 	async sendOtp(@Body() otpSendDto: OtpSendRequestDto) {
 		return await this.authService.signupStepOne(otpSendDto);
@@ -57,12 +61,14 @@ export class AuthController {
 	})
 	@ApiUnprocessableEntityResponse({
 		status: 422,
-		description:
-			"UnprocessableEntity: Signup Session invalid, Device Id mismatch",
+		description: `UnprocessableEntity: ${[
+			ErrorMessages.INVALID_DEVICE_ID,
+			ErrorMessages.INVALID_TOKEN,
+			ErrorMessages.OTP_RETRY_EXCEED,
+		]}`,
 	})
-	@ApiForbiddenResponse({
-		description:
-			"Account with same phone number exists, maximum OTP retry count exceeds",
+	@ApiExceptionResponse({
+		errors: [ErrorMessages.INVALID_OTP, ErrorMessages.PHONE_NUMBER_EXISTS],
 	})
 	@ApiInternalServerErrorResponse({
 		description: "Error with twilio or unprocessed",
@@ -77,15 +83,14 @@ export class AuthController {
 		type: SessionTokenResponse,
 	})
 	@ApiUnprocessableEntityResponse({
-		status: 422,
-		description:
-			"UnprocessableEntity: Signup Session invalid, Device Id mismatch",
+		status: HttpStatus.UNPROCESSABLE_ENTITY,
+		description: `UnprocessableEntity: ${[
+			ErrorMessages.INVALID_DEVICE_ID,
+			ErrorMessages.INVALID_TOKEN,
+		]}`,
 	})
-	@ApiForbiddenResponse({
-		description: "Email taken",
-	})
-	@ApiInternalServerErrorResponse({
-		description: "Unhandled exception",
+	@ApiExceptionResponse({
+		errors: [ErrorMessages.EMAIL_TAKEN],
 	})
 	async email(@Body() emailValidateDto: EmailValidateRequestDto) {
 		return await this.authService.signupStepThree(emailValidateDto);
@@ -97,12 +102,12 @@ export class AuthController {
 		type: SignupResponseDto,
 	})
 	@ApiUnprocessableEntityResponse({
-		status: 422,
-		description:
-			"UnprocessableEntity: Signup Session invalid, Device Id mismatch",
-	})
-	@ApiForbiddenResponse({
-		description: "Signup Pre conditions unmet",
+		status: HttpStatus.UNPROCESSABLE_ENTITY,
+		description: `UnprocessableEntity: ${[
+			ErrorMessages.INVALID_DEVICE_ID,
+			ErrorMessages.INVALID_TOKEN,
+			ErrorMessages.NOT_ALLOWED,
+		]}`,
 	})
 	@ApiInternalServerErrorResponse({
 		description: "Unhandled exception or AWS related exception",
@@ -115,9 +120,8 @@ export class AuthController {
 	@ApiOkResponse({
 		description: "User logged in and tokens generated successfully",
 	})
-	@ApiUnprocessableEntityResponse({
-		status: 422,
-		description: "Username or password invalid",
+	@ApiExceptionResponse({
+		errors: [ErrorMessages.USER_NOT_FOUND, ErrorMessages.PASSWORD_INVALID],
 	})
 	@ApiInternalServerErrorResponse({
 		description: "Unhandled exception or AWS related exception",
@@ -130,6 +134,9 @@ export class AuthController {
 		description: "Send reset password code",
 		type: String,
 	})
+	@ApiExceptionResponse({
+		errors: [ErrorMessages.USER_NOT_FOUND],
+	})
 	@Post("reset-password")
 	async resetPassword(@Body() resetDto: PasswordResetDto) {
 		return await this.authService.sendResetPassword({ email: resetDto.email });
@@ -138,6 +145,9 @@ export class AuthController {
 	@ApiOkResponseBody({
 		description: "Create new password with password reset code",
 		type: String,
+	})
+	@ApiExceptionResponse({
+		errors: [ErrorMessages.USER_NOT_FOUND],
 	})
 	@Post("new-password")
 	async newPassword(@Body() newPasswordDto: NewPasswordRequestDto) {
