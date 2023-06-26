@@ -6,6 +6,8 @@ import { UserDto } from "../Dto/User.dto";
 import { SearchUserQuery } from "src/user/Dto/SearchUserQuery.dto";
 import { DeleteUserRequestDTO } from "../Dto/DeleteUser.request.dto";
 import { ReqUser } from "src/app.types";
+import { APIException } from "src/Exceptions/APIException";
+import { ErrorMessages } from "../Dto/enum/ErrorMessages";
 
 @Injectable()
 export class UserService {
@@ -137,7 +139,7 @@ export class UserService {
 		});
 
 		if (user.followers.find((user) => user.id === follower.id)) {
-			throw new UnprocessableEntityException("USER_ALREADY_FOLLOWED");
+			throw new APIException(ErrorMessages.USER_ALREADY_FOLLOWED);
 		}
 
 		user.followers.push(follower);
@@ -157,7 +159,7 @@ export class UserService {
 		});
 
 		if (user.followers.find((user) => user.id !== follower.id)) {
-			throw new UnprocessableEntityException("USER_NOT_FOLLOWED");
+			throw new APIException(ErrorMessages.USER_NOT_FOLLOWED);
 		}
 
 		user.followers = user.followers.filter((user) => user.id !== follower.id);
