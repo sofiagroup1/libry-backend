@@ -64,7 +64,10 @@ export class UserController {
 	})
 	async getUserById(@Param("id") id: string): Promise<ResponseDto<UserDto>> {
 		const data = this.userService.toUserDto(
-			await this.userService.findUser({ where: { id } }),
+			await this.userService.findUser({
+				where: { id },
+				relations: ["followers", "following"],
+			}),
 		);
 
 		return { data, message: "USER_FOUND" };
