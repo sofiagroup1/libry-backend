@@ -8,7 +8,6 @@ import {
 	Query,
 } from "@nestjs/common";
 import {
-	ApiForbiddenResponse,
 	ApiInternalServerErrorResponse,
 	ApiOkResponse,
 	ApiTags,
@@ -30,8 +29,8 @@ import { RefreshTokensRequestDto } from "../Dto/RefreshTokens.request.dto";
 import { SignUpRequestDto } from "../Dto/Signup.request.dto";
 import { SignupResponseDto } from "../Dto/Signup.response.dto";
 import { SessionTokenResponse } from "../Dto/Token.response.dto";
-import { AuthService } from "../Services/auth.service";
 import { ErrorMessages } from "../Dto/enum/ErrorMessages";
+import { AuthService } from "../Services/auth.service";
 
 @Controller("auth")
 @ApiTags("Authentication")

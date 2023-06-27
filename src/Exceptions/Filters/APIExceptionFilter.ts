@@ -19,17 +19,18 @@ export class APIExceptionFilter implements ExceptionFilter {
 		const request = ctx.getRequest<Request>();
 		const status = exception.getStatus();
 
-		const res = new ResponseDto<null>();
-		res.message = exception.message;
-		res.status = STATUS.ERROR;
-		res.data = null;
-		res.error = {
-			path: request.url,
-			timestamp: new Date().toISOString(),
-			statusCode: status,
-			error: exception.cause,
-			stack: this.isDevelopment ? exception.stack : undefined,
-		};
+		const res = new ResponseDto<null>({
+			data: null,
+			message: exception.message,
+			status: STATUS.ERROR,
+			error: {
+				path: request.url,
+				timestamp: new Date().toISOString(),
+				statusCode: status,
+				error: exception.cause,
+				stack: this.isDevelopment ? exception.stack : undefined,
+			},
+		});
 
 		response.status(HttpStatus.ACCEPTED).json(res);
 	}

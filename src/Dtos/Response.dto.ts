@@ -6,6 +6,26 @@ export enum STATUS {
 }
 
 export class ResponseDto<T = object, U = unknown> {
+	constructor({
+		data,
+		message,
+		status = STATUS.SUCCESS,
+		metadata,
+		error,
+	}: {
+		data: T;
+		message: string;
+		status?: STATUS;
+		metadata?: U;
+		error?: any;
+	}) {
+		this.status = status;
+		this.message = message;
+		this.data = data;
+		this.metadata = metadata;
+		this.error = error;
+	}
+
 	@ApiProperty()
 	data: T;
 

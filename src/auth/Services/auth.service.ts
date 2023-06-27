@@ -144,12 +144,12 @@ export class AuthService {
 			this.logger.log(`SignupStepTwo: SUCCESS: ${new_session}`);
 
 			// SUCCESS
-			return {
+			return new ResponseDto<{ token: string }>({
 				data: {
 					token: new_session.token,
 				},
 				message: SUCCESS_MESSAGES.OTP_VERIFIED,
-			};
+			});
 		} else {
 			session.status = "OTP_FAILED";
 
@@ -206,10 +206,10 @@ export class AuthService {
 		this.logger.log(`SignupStepThree: SUCCESS: ${saved_session}`);
 
 		// SUCCESS
-		return {
+		return new ResponseDto<{ token: string }>({
 			data: { token: saved_session.token },
 			message: SUCCESS_MESSAGES.EMAIL_ADDED,
-		};
+		});
 	}
 
 	async signupStepFinal(
@@ -280,10 +280,10 @@ export class AuthService {
 		this.logger.log(
 			`SignupStepFinal: User Tokens generated: UserId: ${user.id}`,
 		);
-		return {
+		return new ResponseDto<{ user: UserDto; tokens: any }>({
 			message: SUCCESS_MESSAGES.SIGNUP_SUCCESS,
 			data: { user: user, tokens },
-		};
+		});
 	}
 
 	async loginUser(loginRequest: LoginRequestDto): Promise<ResponseDto<any>> {
@@ -318,7 +318,10 @@ export class AuthService {
 				password,
 			});
 			this.logger.log(`LoginUser: User logged in: UserId: ${userFound.id}`);
-			return { data: tokens, message: SUCCESS_MESSAGES.LOGIN_SUCCESS };
+			return new ResponseDto({
+				data: tokens,
+				message: SUCCESS_MESSAGES.LOGIN_SUCCESS,
+			});
 		} catch (error) {
 			this.logger.error(`LoginUser: COGNITO ERROR: ${error}`);
 			throw new APIException(ErrorMessages.PASSWORD_INVALID);
@@ -339,7 +342,7 @@ export class AuthService {
 			username: user.cognitoSub,
 		});
 
-		return { data: data, message: SUCCESS_MESSAGES.OTP_SENT };
+		return new ResponseDto({ data: data, message: SUCCESS_MESSAGES.OTP_SENT });
 	}
 
 	async confirmPassword({
@@ -362,7 +365,10 @@ export class AuthService {
 			code,
 		});
 
-		return { data: data, message: SUCCESS_MESSAGES.PASSWORD_CHANGED };
+		return new ResponseDto({
+			data: data,
+			message: SUCCESS_MESSAGES.PASSWORD_CHANGED,
+		});
 	}
 
 	async validateUser(cognitoSub: string) {
@@ -387,14 +393,16 @@ export class AuthService {
 
 			// TODO Redirect to web page
 			// SUCCESS
-			return {
+			return new ResponseDto({
+				data: null,
 				message: SUCCESS_MESSAGES.EMAIL_VERIFIED,
-			};
+			});
 		} else {
 			// TODO Redirect to web page
-			return {
+			return new ResponseDto({
+				data: null,
 				message: ErrorMessages.INVALID_VERIFICATION_LINK,
-			};
+			});
 		}
 	}
 
@@ -408,10 +416,14 @@ export class AuthService {
 			.update(seed + payload)
 			.digest("hex");
 	}
+
 	async deleteUser(deleteUserRequestDto: DeleteUserRequestDTO) {
 		const user = await this.awsCognitoService.adminDeleteUser(
 			deleteUserRequestDto,
 		);
-		return user;
+		return new ResponseDto({
+			data: user,
+			message: SUCCESS_MESSAGES.USER_DELETED,
+		});
 	}
 }

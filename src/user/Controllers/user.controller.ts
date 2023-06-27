@@ -16,6 +16,7 @@ import { Request } from "express";
 import { ReqUser } from "src/app.types";
 import { AuthGuard } from "@nestjs/passport";
 import { ResponseDto } from "src/Dtos/Response.dto";
+import { SUCCESS_MESSAGES } from "src/auth/Dto/enum/SuccessMessages";
 
 @Controller("user")
 @ApiTags("User")
@@ -39,7 +40,10 @@ export class UserController {
 			loggedInUser,
 		);
 
-		return { data, message: "USERS_FOUND" };
+		return new ResponseDto<UserDto[]>({
+			data,
+			message: SUCCESS_MESSAGES.USERS_FOUND,
+		});
 	}
 
 	@Get("popular")
@@ -54,7 +58,7 @@ export class UserController {
 		const loggedInUser = request.user as ReqUser;
 
 		const data = await this.userService.getPopularUsers(loggedInUser);
-		return { data, message: "POPULAR_USERS_FOUND" };
+		return new ResponseDto<UserDto[]>({ data, message: "POPULAR_USERS_FOUND" });
 	}
 
 	@Get(":id")
@@ -70,7 +74,10 @@ export class UserController {
 			}),
 		);
 
-		return { data, message: "USER_FOUND" };
+		return new ResponseDto<UserDto>({
+			data,
+			message: SUCCESS_MESSAGES.USER_FOUND,
+		});
 	}
 
 	@Post(":id/follow")
@@ -86,7 +93,10 @@ export class UserController {
 
 		const data = await this.userService.followUser(loggedInUser.user.id, id);
 
-		return { data, message: "USER_FOLLOWED" };
+		return new ResponseDto<UserDto>({
+			data,
+			message: SUCCESS_MESSAGES.USER_FOLLOWED,
+		});
 	}
 
 	@Post(":id/unfollow")
@@ -102,7 +112,10 @@ export class UserController {
 
 		const data = await this.userService.unfollowUser(loggedInUser.user.id, id);
 
-		return { data, message: "USER_UNFOLLOWED" };
+		return new ResponseDto<UserDto>({
+			data,
+			message: SUCCESS_MESSAGES.USER_UNFOLLOWED,
+		});
 	}
 
 	@Get(":id/followers")
@@ -114,7 +127,10 @@ export class UserController {
 	async getFollowers(@Param("id") id: string): Promise<ResponseDto<UserDto[]>> {
 		const data = await this.userService.getFollowers(id);
 
-		return { data, message: "FOLLOWERS_FOUND" };
+		return new ResponseDto<UserDto[]>({
+			data,
+			message: SUCCESS_MESSAGES.FOLLOWERS_FOUND,
+		});
 	}
 
 	@Get(":id/following")
@@ -126,6 +142,9 @@ export class UserController {
 	async getFollowing(@Param("id") id: string): Promise<ResponseDto<UserDto[]>> {
 		const data = await this.userService.getFollowing(id);
 
-		return { data, message: "FOLLOWING_FOUND" };
+		return new ResponseDto<UserDto[]>({
+			data,
+			message: SUCCESS_MESSAGES.FOLLOWING_FOUND,
+		});
 	}
 }

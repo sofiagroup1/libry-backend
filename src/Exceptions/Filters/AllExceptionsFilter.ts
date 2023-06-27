@@ -33,17 +33,18 @@ export class AllExceptionsFilter implements ExceptionFilter {
 		const stack =
 			exception instanceof HttpException ? exception.stack : undefined;
 
-		const responseBody = new ResponseDto<null>();
-		responseBody.message = message;
-		responseBody.status = STATUS.ERROR;
-		responseBody.data = null;
-		responseBody.error = {
-			path: httpAdapter.getRequestUrl(ctx.getRequest()),
-			timestamp: new Date().toISOString(),
-			statusCode: httpStatus,
-			error: cause,
-			stack: this.isDevelopment ? stack : undefined,
-		};
+		const responseBody = new ResponseDto<null>({
+			data: null,
+			message: message,
+			status: STATUS.ERROR,
+			error: {
+				path: httpAdapter.getRequestUrl(ctx.getRequest()),
+				timestamp: new Date().toISOString(),
+				statusCode: httpStatus,
+				error: cause,
+				stack: this.isDevelopment ? stack : undefined,
+			},
+		});
 
 		httpAdapter.reply(ctx.getResponse(), responseBody, httpStatus);
 	}

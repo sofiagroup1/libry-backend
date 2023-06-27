@@ -9,6 +9,7 @@ import { OnboardingUserDetailsRequestDto } from "../Dto/onboarding.request.dto";
 import { User } from "../Entities/User.entity";
 import { ApiOkResponseBody } from "src/Decorators/ApiResponseBody.decorator";
 import { ResponseDto } from "src/Dtos/Response.dto";
+import { SUCCESS_MESSAGES } from "../Dto/enum/SuccessMessages";
 
 @Controller("profile")
 @ApiTags("Profile")
@@ -26,10 +27,10 @@ export class ProfileController {
 			relations: ["followers", "following"],
 		});
 
-		return {
+		return new ResponseDto<UserDto>({
 			data: this.userService.toUserDetailedDto(user),
-			message: "USER FOUND",
-		};
+			message: SUCCESS_MESSAGES.USER_FOUND,
+		});
 	}
 
 	@Post("onboarding")
@@ -56,9 +57,9 @@ export class ProfileController {
 			);
 		}
 
-		return {
+		return new ResponseDto<UserDto>({
 			data: this.userService.toUserDetailedDto(updatedUser),
-			message: "USER_DATA_UPDATED",
-		};
+			message: SUCCESS_MESSAGES.USER_DATA_UPDATED,
+		});
 	}
 }
