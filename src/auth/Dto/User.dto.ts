@@ -38,7 +38,7 @@ export class UserDto {
 	followingCount?: number;
 
 	@ApiProperty()
-	followerCount?: number;
+	followersCount?: number;
 
 	@ApiProperty()
 	isFollowed?: boolean;

@@ -21,8 +21,13 @@ export class ProfileController {
 	async getLoggedUser(@Req() request: Request): Promise<ResponseDto<UserDto>> {
 		const loggedInUser = request.user as ReqUser;
 
+		const user = await this.userService.findUser({
+			where: { id: loggedInUser.user.id },
+			relations: ["followers", "following"],
+		});
+
 		return {
-			data: this.userService.toUserDto(loggedInUser.user),
+			data: this.userService.toUserDetailedDto(user),
 			message: "USER FOUND",
 		};
 	}
@@ -52,7 +57,7 @@ export class ProfileController {
 		}
 
 		return {
-			data: this.userService.toUserDto(updatedUser),
+			data: this.userService.toUserDetailedDto(updatedUser),
 			message: "USER_DATA_UPDATED",
 		};
 	}

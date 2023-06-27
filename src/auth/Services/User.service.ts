@@ -1,13 +1,13 @@
-import { Injectable, UnprocessableEntityException } from "@nestjs/common";
-import { FindOneOptions, FindOptionsWhere, Repository } from "typeorm";
-import { User } from "../Entities/User.entity";
+import { Injectable } from "@nestjs/common";
 import { InjectRepository } from "@nestjs/typeorm";
-import { UserDto } from "../Dto/User.dto";
-import { SearchUserQuery } from "src/user/Dto/SearchUserQuery.dto";
-import { DeleteUserRequestDTO } from "../Dto/DeleteUser.request.dto";
-import { ReqUser } from "src/app.types";
 import { APIException } from "src/Exceptions/APIException";
+import { ReqUser } from "src/app.types";
+import { SearchUserQuery } from "src/user/Dto/SearchUserQuery.dto";
+import { FindOneOptions, FindOptionsWhere, Repository } from "typeorm";
+import { DeleteUserRequestDTO } from "../Dto/DeleteUser.request.dto";
+import { UserDto } from "../Dto/User.dto";
 import { ErrorMessages } from "../Dto/enum/ErrorMessages";
+import { User } from "../Entities/User.entity";
 
 @Injectable()
 export class UserService {
@@ -16,7 +16,7 @@ export class UserService {
 		private userRepository: Repository<User>,
 	) {}
 
-	toUserDto(data: User): UserDto {
+	toUserDetailedDto(data: User): UserDto {
 		const dto: UserDto = {
 			id: data.id,
 			email: data.email,
@@ -35,6 +35,25 @@ export class UserService {
 		return dto;
 	}
 
+	toUserDto(data: User): UserDto {
+		const dto: UserDto = {
+			id: data.id,
+			email: data.email,
+			phone_number: data.phone_number,
+			description: data.description,
+			name: data.name,
+			birth_date: data.birth_date,
+			userConfirmed: data.userConfirmed,
+			email_verified: data.email_verified,
+			phone_number_verified: data.phone_number_verified,
+			followersCount: data.followersCount,
+			followingCount: data.followingCount,
+			isFollowed: data.isFollowed,
+		};
+
+		return dto;
+	}
+
 	async findUser(options: FindOneOptions<User>) {
 		return await this.userRepository.findOne(options);
 	}
@@ -44,7 +63,10 @@ export class UserService {
 	}
 
 	async edit(where: FindOptionsWhere<User>, data: User) {
-		const org_data = await this.userRepository.findOne({ where });
+		const org_data = await this.userRepository.findOne({
+			where,
+			relations: ["following", "followers"],
+		});
 		const mut_data = { ...org_data, ...data };
 		return await this.userRepository.save(mut_data);
 	}
@@ -84,18 +106,20 @@ export class UserService {
 
 		queryBuilder
 			.leftJoinAndSelect("user.followers", "followers")
-			.leftJoinAndSelect("user.following", "following");
+			.leftJoinAndSelect("user.following", "following")
+			.loadRelationCountAndMap("user.followingCount", "user.followers")
+			.loadRelationCountAndMap("user.followersCount", "user.following");
 
 		queryBuilder
 			.leftJoinAndSelect(
-				"user.following",
+				"user.followers",
 				"follower",
 				"follower.id = :loggedInUserId",
 				{ loggedInUserId: loggedInUser.user.id },
 			)
 			.loadRelationCountAndMap(
 				"user.isFollowed",
-				"user.following",
+				"user.followers",
 				"follower",
 				(qb) =>
 					qb
@@ -123,49 +147,47 @@ export class UserService {
 			user.isFollowed = !!user.isFollowed;
 		});
 
-		console.log(users);
-
 		return users.map((user) => this.toUserDto(user));
 	}
 
 	async followUser(userId: string, followerId: string) {
 		let user = await this.userRepository.findOne({
 			where: { id: userId },
-			relations: ["followers"],
+			relations: ["following"],
 		});
 		const follower = await this.userRepository.findOne({
 			where: { id: followerId },
-			relations: ["following"],
+			relations: ["followers"],
 		});
 
-		if (user.followers.find((user) => user.id === follower.id)) {
+		if (user.following.find((user) => user.id === follower.id)) {
 			throw new APIException(ErrorMessages.USER_ALREADY_FOLLOWED);
 		}
 
-		user.followers.push(follower);
+		user.following.push(follower);
 		user = await this.userRepository.save(user);
 
-		return this.toUserDto(user);
+		return this.toUserDetailedDto(user);
 	}
 
 	async unfollowUser(userId: string, followerId: string) {
 		let user = await this.userRepository.findOne({
 			where: { id: userId },
-			relations: ["followers"],
+			relations: ["following"],
 		});
 		const follower = await this.userRepository.findOne({
 			where: { id: followerId },
-			relations: ["following"],
+			relations: ["followers"],
 		});
 
-		if (user.followers.find((user) => user.id !== follower.id)) {
+		if (user.following.find((user) => user.id !== follower.id)) {
 			throw new APIException(ErrorMessages.USER_NOT_FOLLOWED);
 		}
 
-		user.followers = user.followers.filter((user) => user.id !== follower.id);
+		user.following = user.following.filter((user) => user.id !== follower.id);
 		user = await this.userRepository.save(user);
 
-		return this.toUserDto(user);
+		return this.toUserDetailedDto(user);
 	}
 
 	async getFollowers(userId: string) {
@@ -174,7 +196,7 @@ export class UserService {
 			relations: ["followers"],
 		});
 
-		return user.followers.map((user) => this.toUserDto(user));
+		return user.followers.map((user) => this.toUserDetailedDto(user));
 	}
 
 	async getFollowing(userId: string) {
@@ -183,7 +205,7 @@ export class UserService {
 			relations: ["following"],
 		});
 
-		return user.following.map((user) => this.toUserDto(user));
+		return user.following.map((user) => this.toUserDetailedDto(user));
 	}
 
 	async deleteUser(deleteUserRequestDto: DeleteUserRequestDTO) {
@@ -198,19 +220,20 @@ export class UserService {
 			const queryBuilder = this.userRepository
 				.createQueryBuilder("user")
 				.andWhere("user.id != :id", { id: loggedInUser.user.id }) // exclude logged in user
-				.leftJoinAndSelect("user.following", "following")
-				.loadRelationCountAndMap("user.followingCount", "user.following");
+				.leftJoinAndSelect("user.followers", "followers")
+				.loadRelationCountAndMap("user.followingCount", "user.followers")
+				.loadRelationCountAndMap("user.followersCount", "user.following");
 
 			queryBuilder
 				.leftJoinAndSelect(
-					"user.following",
+					"user.followers",
 					"follower",
 					"follower.id = :loggedInUserId",
 					{ loggedInUserId: loggedInUser.user.id },
 				)
 				.loadRelationCountAndMap(
 					"user.isFollowed",
-					"user.following",
+					"user.followers",
 					"follower",
 					(qb) =>
 						qb
@@ -225,6 +248,7 @@ export class UserService {
 			// TODO figure out a way to do this in query builder
 			users.forEach((user) => {
 				user.isFollowed = !!user.isFollowed;
+				user.followers = [];
 			});
 			users = users.filter((user) => user.followingCount > 0);
 			users = users.sort((a, b) => b.followingCount - a.followingCount);

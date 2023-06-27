@@ -38,18 +38,18 @@ export class User {
 	@Column({ default: false })
 	userConfirmed: boolean;
 
-	@ManyToMany(() => User, (user) => user.following)
+	@ManyToMany(() => User, (user) => user.following, { onDelete: "CASCADE" })
 	@JoinTable()
 	followers: User[];
 
-	@ManyToMany(() => User, (user) => user.followers)
+	@ManyToMany(() => User, (user) => user.followers, { onDelete: "CASCADE" })
 	following: User[];
 
 	@Column({ select: false, nullable: true, insert: false, update: false })
 	followingCount?: number;
 
 	@Column({ select: false, nullable: true, insert: false, update: false })
-	followerCount?: number;
+	followersCount?: number;
 
 	@Column({ select: false, nullable: true, insert: false, update: false })
 	isFollowed?: boolean;
