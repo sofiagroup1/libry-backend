@@ -261,6 +261,14 @@ export class AuthService {
 				userId: user.id,
 				attribute: "phone_number_verified",
 			});
+
+			// TODO - Temporary fix
+			await this.awsCognitoService.adminVerifyAttribute({
+				username: user.cognitoSub,
+				userId: user.id,
+				attribute: "email_verified",
+			});
+
 			this.logger.log(
 				`SignupStepFinal: User Phone number verified in cognito: UserId: ${user.id}`,
 			);
