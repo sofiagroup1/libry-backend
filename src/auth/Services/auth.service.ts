@@ -78,6 +78,10 @@ export class AuthService {
 		const userFound = await this.userService.findUser({
 			where: { phone_number: mobile_number },
 		});
+		if (userFound) {
+			this.logger.error(`SignupStepTwo: Phone number taken: ${mobile_number}`);
+			throw new APIException(ErrorMessages.PHONE_NUMBER_EXISTS);
+		}
 
 		const token = this._generateToken(device_id);
 		const session = new SignUpAuthSession();
